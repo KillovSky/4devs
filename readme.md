@@ -1,5 +1,11 @@
 # @killovsky/4devs
 
+[![npm version](https://img.shields.io/npm/v/@killovsky/4devs.svg)](https://www.npmjs.com/package/@killovsky/4devs)
+[![CI](https://github.com/KillovSky/4devs/actions/workflows/ci.yml/badge.svg)](https://github.com/KillovSky/4devs/actions/workflows/ci.yml)
+[![npm downloads](https://img.shields.io/npm/dm/@killovsky/4devs.svg)](https://www.npmjs.com/package/@killovsky/4devs)
+[![license](https://img.shields.io/npm/l/@killovsky/4devs.svg)](./LICENSE)
+[![node](https://img.shields.io/node/v/@killovsky/4devs.svg)](./package.json)
+
 Cliente para as ferramentas de geração e validação de dados brasileiros do [4devs.com.br](https://www.4devs.com.br) — pessoa, CPF, CNPJ, RG, CNH, PIS/PASEP, RENAVAM, título de eleitor, inscrição estadual, certidões, conta bancária, cartão de crédito, veículo, placa, empresa e cidades por UF.
 
 Sem dependências em tempo de execução: usa só `fetch` nativo (Node ≥18) e um parser de HTML próprio para os fragmentos que o site devolve. Se o 4devs cair ou bloquear a requisição, o módulo continua funcionando sozinho — os geradores e validadores caem para um modo local (veja [Modo local / fallback](#modo-local--fallback) abaixo).
@@ -159,6 +165,16 @@ Compila o pacote (`pretest` chama `npm run build`) e roda com `node --test` sobr
 ## Aviso
 
 Este módulo depende de uma ferramenta pública de terceiros (4devs.com.br), que pode mudar ou bloquear o acesso sem aviso — é justamente por isso que existe o modo local. Todos os dados gerados são fictícios, para uso em testes de software.
+
+## Contribuindo
+
+Contribuições são bem-vindas! Veja o [guia de contribuição](./CONTRIBUTING.md) para configurar o ambiente, rodar os testes e o fluxo de Pull Request. Ao participar, siga o [Código de Conduta](./CODE_OF_CONDUCT.md).
+
+Para reportar vulnerabilidades de segurança, siga o processo em [SECURITY.md](./SECURITY.md) — não abra uma issue pública.
+
+## Changelog
+
+Veja [CHANGELOG.md](./CHANGELOG.md) para o histórico de versões.
 
 ## Licença
 

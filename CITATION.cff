@@ -1,0 +1,70 @@
+cff-version: 1.2.0
+message: >-
+  Se você usar o 4devs em pesquisas, publicações, projetos acadêmicos ou
+  projetos derivados, por favor cite usando as informações abaixo. E obviamente,
+  mencione o site que deu poder a esse projeto.
+
+type: software
+title: "4devs"
+abstract: >-
+  4devs é um cliente nativo, sem dependências de produção, para geração e
+  validação de dados brasileiros fictícios por meio do serviço 4devs.com.br.
+  O projeto é desenvolvido em TypeScript e oferece suporte a ESM e CommonJS,
+  além de uma interface de linha de comando (CLI). Entre os recursos estão
+  geração e validação de CPF, CNPJ, RG, CNH, PIS/PASEP, RENAVAM, título de
+  eleitor, inscrição estadual, dados bancários, cartões, veículos, empresas,
+  cidades, estados e outros dados brasileiros.
+
+authors:
+  - alias: "KillovSky"
+
+repository-code: "https://github.com/KillovSky/4devs"
+url: "https://www.npmjs.com/package/@killovsky/4devs"
+license: MIT
+version: "2.0.0"
+date-released: "2026-09-01"
+
+keywords:
+  - 4devs
+  - brazil
+  - fake-data
+  - data-generator
+  - data-validator
+  - cpf
+  - cnpj
+  - rg
+  - cnh
+  - pis-pasep
+  - renavam
+  - titulo-de-eleitor
+  - inscricao-estadual
+  - certidao
+  - conta-bancaria
+  - cartao-de-credito
+  - veiculo
+  - placa
+  - empresa
+  - cidades
+  - estados
+  - typescript
+  - nodejs
+  - esm
+  - commonjs
+  - cli
+  - zero-dependency
+
+references:
+  - type: website
+    title: "4devs"
+    url: "https://www.4devs.com.br"
+    notes: "Serviço importantíssimo utilizado pelo cliente para geração e validação dos dados."
+
+  - type: software
+    title: "TypeScript"
+    url: "https://www.typescriptlang.org"
+    notes: "Linguagem utilizada no desenvolvimento do projeto."
+
+  - type: software
+    title: "tsup"
+    url: "https://tsup.egoist.dev"
+    notes: "Ferramenta utilizada para empacotamento e geração das distribuições ESM e CommonJS."
