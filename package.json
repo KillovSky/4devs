@@ -1,6 +1,6 @@
 {
   "name": "@killovsky/4devs",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Cliente nativo, sem dependências, para geração e validação de dados brasileiros fictícios (pessoa, CPF, CNPJ, RG, CNH, PIS/PASEP, RENAVAM, título de eleitor, inscrição estadual, certidões, conta bancária, cartão de crédito, veículo, placa, empresa, cidades e UF) via 4devs.com.br. CLI e suporte completo a TypeScript/ESM/CommonJS.",
   "type": "module",
   "main": "./dist/index.cjs",

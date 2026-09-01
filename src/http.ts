@@ -10,6 +10,17 @@
 const API_URL = 'https://www.4devs.com.br/ferramentas_online.php';
 const ORIGIN = 'https://www.4devs.com.br';
 
+/**
+ * Teto de tamanho para o corpo da resposta. As respostas reais do 4devs são
+ * pequenas (a maior é a lista de cidades de SP, algo como algumas dezenas de
+ * KB) — este limite existe como defesa em profundidade: `parse.ts` usa
+ * regex para extrair conteúdo desses fragmentos, e um corpo de resposta
+ * anormalmente grande (site comprometido, MITM, resposta inesperada)
+ * poderia, em tese, deixar esse parsing mais lento que o necessário. Cortar
+ * o tamanho aqui, antes de qualquer parsing, elimina esse risco na raiz.
+ */
+const MAX_RESPONSE_LENGTH = 200_000; // ~200.000 caracteres (~200 KB) — bem acima de qualquer resposta real
+
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' +
   ' (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -54,9 +65,9 @@ export async function fordevRequest(
   payload: Record<string, string | number>,
   options: RequestOptions = {},
 ): Promise<RawApiResult> {
-  const body = new URLSearchParams();
+  const requestBody = new URLSearchParams();
   for (const [key, value] of Object.entries(payload)) {
-    body.append(key, String(value));
+    requestBody.append(key, String(value));
   }
 
   const controller = new AbortController();
@@ -66,22 +77,23 @@ export async function fordevRequest(
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: buildHeaders(referer),
-      body: body.toString(),
+      body: requestBody.toString(),
       signal: controller.signal,
     });
 
     const text = await res.text();
+    const body = text.length > MAX_RESPONSE_LENGTH ? text.slice(0, MAX_RESPONSE_LENGTH) : text;
 
     if (!res.ok) {
       return {
         ok: false,
         status: res.status,
-        body: text,
+        body,
         error: `Requisição falhou com status HTTP ${res.status}.`,
       };
     }
 
-    return { ok: true, status: res.status, body: text, error: null };
+    return { ok: true, status: res.status, body, error: null };
   } catch (err) {
     const isAbort = err instanceof Error && err.name === 'AbortError';
     return {

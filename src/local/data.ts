@@ -88,10 +88,7 @@ export const COMPANY_ACTIVITIES = [
 
 export const COMPANY_SUFFIXES = ['LTDA', 'ME', 'EIRELI', 'S.A.'];
 
-export function randomItem<T>(items: readonly T[]): T {
-  return items[Math.floor(Math.random() * items.length)];
-}
-
-export function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+// randomItem/randomInt reexportados de `secureRandom.ts` (crypto.randomInt em
+// vez de Math.random()) — mantidos aqui por compatibilidade, já que
+// `local/generators.ts` os importa deste módulo.
+export { randomItem, randomInt } from './secureRandom.js';

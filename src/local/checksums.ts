@@ -14,16 +14,14 @@
  * com verificações de formato, não de dígito verificador.
  */
 
+import { randomDigits } from './secureRandom.js';
+
 function toDigits(value: string): number[] {
   return value.replace(/\D/g, '').split('').map(Number);
 }
 
 function allSameDigit(digits: number[]): boolean {
   return digits.every((d) => d === digits[0]);
-}
-
-function randomDigits(length: number): number[] {
-  return Array.from({ length }, () => Math.floor(Math.random() * 10));
 }
 
 // ---------------------------------------------------------------------------

@@ -39,22 +39,88 @@ export function decodeHtmlEntities(input: string): string {
     .replace(/&([a-zA-Z]+);/g, (match, name: string) => NAMED_ENTITIES[name] ?? match);
 }
 
+/**
+ * Remove tags HTML de uma string em uma única passada linear (sem regex).
+ *
+ * Evitamos aqui uma regex do tipo `/<[^>]*>/g` de propósito: aplicada
+ * globalmente sobre HTML não confiável (a resposta vem de rede, de um
+ * terceiro), esse padrão pode degradar para tempo quadrático em entradas
+ * adversariais com muitos `<` sem `>` correspondente — CodeQL sinaliza isso
+ * como "polynomial regular expression used on uncontrolled data". Um
+ * scanner de um único caractere por vez é O(n) garantido, sem esse risco.
+ */
+function removeTags(input: string): string {
+  let out = '';
+  let inTag = false;
+  for (let i = 0; i < input.length; i += 1) {
+    const ch = input[i];
+    if (ch === '<') {
+      inTag = true;
+      out += ' '; // cada tag vira um espaço, igual ao comportamento anterior baseado em regex
+      continue;
+    }
+    if (ch === '>') {
+      inTag = false;
+      continue;
+    }
+    if (!inTag) out += ch;
+  }
+  return out;
+}
+
 /** Remove tags HTML e normaliza espaços em branco de um trecho de texto. */
 export function stripTags(input: string): string {
-  return decodeHtmlEntities(input.replace(/<[^>]*>/g, ' '))
+  return decodeHtmlEntities(removeTags(input))
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/** Extrai atributos `nome="valor"` (ou `nome='valor'`) de uma tag HTML isolada. */
+/**
+ * Extrai atributos `nome="valor"` (ou `nome='valor'`) de uma tag HTML isolada.
+ *
+ * Implementado como um tokenizer de uma passada (sem regex) pelo mesmo
+ * motivo de `removeTags`: o conteúdo de uma tag pode vir de uma resposta de
+ * rede não confiável, e um parser linear elimina qualquer risco de
+ * complexidade polinomial em entradas adversariais.
+ */
 function extractAttributes(tag: string): Record<string, string> {
   const attrs: Record<string, string> = {};
-  const re = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
-  let match: RegExpExecArray | null;
-  // eslint-disable-next-line no-cond-assign
-  while ((match = re.exec(tag)) !== null) {
-    attrs[match[1].toLowerCase()] = match[2] ?? match[3] ?? '';
+  const len = tag.length;
+  const isNameStart = (c: string) => /[a-zA-Z_:]/.test(c);
+  const isNameChar = (c: string) => /[-a-zA-Z0-9_:.]/.test(c);
+  const isSpace = (c: string) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f' || c === '\v';
+
+  let i = 0;
+  while (i < len) {
+    while (i < len && !isNameStart(tag[i])) i += 1;
+    if (i >= len) break;
+
+    const nameStart = i;
+    i += 1;
+    while (i < len && isNameChar(tag[i])) i += 1;
+    const name = tag.slice(nameStart, i).toLowerCase();
+
+    let j = i;
+    while (j < len && isSpace(tag[j])) j += 1;
+    if (j >= len || tag[j] !== '=') {
+      i = j;
+      continue; // atributo sem valor (booleano) — ignorado, como no comportamento anterior
+    }
+    j += 1;
+    while (j < len && isSpace(tag[j])) j += 1;
+
+    const quote = tag[j];
+    if (quote !== '"' && quote !== "'") {
+      i = j;
+      continue; // valor sem aspas — fora do escopo do parser (os fragmentos do 4devs sempre usam aspas)
+    }
+    j += 1;
+    const valueStart = j;
+    while (j < len && tag[j] !== quote) j += 1;
+    attrs[name] = tag.slice(valueStart, j);
+    i = j < len ? j + 1 : j;
   }
+
   return attrs;
 }
 

@@ -36,15 +36,15 @@ import {
   generateStateRegistrationDigits, generateVoterTitleDigits,
 } from './plausible.js';
 
+import { randomDigitString } from './secureRandom.js';
+
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(Math.max(Math.floor(value), min), max);
 }
 
 function digitString(length: number): string {
-  let out = '';
-  for (let i = 0; i < length; i += 1) out += Math.floor(Math.random() * 10);
-  return out;
+  return randomDigitString(length);
 }
 
 function slugify(value: string): string {

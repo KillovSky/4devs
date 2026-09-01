@@ -10,11 +10,7 @@
  * isso fica marcado explicitamente no `raw` do resultado.
  */
 
-function randomDigitString(length: number): string {
-  let out = '';
-  for (let i = 0; i < length; i += 1) out += Math.floor(Math.random() * 10);
-  return out;
-}
+import { randomDigitString, randomInt } from './secureRandom.js';
 
 // RG (formato SP: NN.NNN.NNN-D, D pode ser dígito ou X)
 export function generateRgDigits(): string {
@@ -80,10 +76,10 @@ export function isPlausibleCertificate(code: string): boolean {
 
 // Placa de veículo (padrão antigo ABC-1234 e padrão Mercosul ABC1D23)
 export function generatePlate(mercosul = true): string {
-  const letters = () => Array.from({ length: 3 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join('');
+  const letters = () => Array.from({ length: 3 }, () => String.fromCharCode(65 + randomInt(0, 25))).join('');
   if (mercosul) {
-    const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-    return `${letters()}${Math.floor(Math.random() * 10)}${letter}${randomDigitString(2)}`;
+    const letter = String.fromCharCode(65 + randomInt(0, 25));
+    return `${letters()}${randomInt(0, 9)}${letter}${randomDigitString(2)}`;
   }
   return `${letters()}${randomDigitString(4)}`;
 }
@@ -100,7 +96,7 @@ export function generateAgency(): string {
 }
 
 export function generateAccountNumber(): string {
-  return `${randomDigitString(Math.floor(Math.random() * 3) + 5)}-${Math.floor(Math.random() * 10)}`;
+  return `${randomDigitString(randomInt(5, 7))}-${randomInt(0, 9)}`;
 }
 
 // Chassi (VIN) — formato de 17 caracteres alfanuméricos (sem I, O, Q), sem
@@ -108,5 +104,5 @@ export function generateAccountNumber(): string {
 // e não é o que o 4devs usa para o campo "Chassi" desta ferramenta).
 const VIN_CHARS = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789';
 export function generateChassis(): string {
-  return Array.from({ length: 17 }, () => VIN_CHARS[Math.floor(Math.random() * VIN_CHARS.length)]).join('');
+  return Array.from({ length: 17 }, () => VIN_CHARS[randomInt(0, VIN_CHARS.length - 1)]).join('');
 }
