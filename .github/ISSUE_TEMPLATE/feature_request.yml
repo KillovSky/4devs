@@ -1,0 +1,77 @@
+name: "✨ Sugestão de Funcionalidade"
+description: "Tem uma ideia para melhorar o módulo? Compartilhe aqui."
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Antes de abrir a issue
+
+        - Verifique se já existe uma sugestão similar em aberto.
+        - Sugestões que violem a arquitetura de camadas do projeto serão fechadas com explicação.
+
+  - type: checkboxes
+    id: existing_request
+    attributes:
+      label: "Você buscou sugestões similares?"
+      options:
+        - label: "Sim, não encontrei solicitação idêntica"
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Área da sugestão"
+      multiple: true
+      options:
+        - "Nova funcionalidade"
+        - "Integração externa (API)"
+        - "Performance / otimização"
+        - "Segurança"
+        - "Documentação / Wiki"
+        - "CI/CD / DevOps"
+        - "Outro"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Qual problema esta funcionalidade resolve?"
+      description: "Descreva a situação atual e por que ela é insatisfatória."
+      placeholder: "Atualmente, quando faço X, preciso fazer Y manualmente porque..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Solução proposta"
+      description: "Como você imagina que isso funcionaria? Seja específico."
+      placeholder: "Poderia ser implementado como um plugin que..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternativas consideradas"
+      description: "Já tentou resolver de outra forma? O que não funcionou?"
+
+  - type: dropdown
+    id: willing_to_contribute
+    attributes:
+      label: "Você gostaria de contribuir com a implementação?"
+      options:
+        - "Sim, posso abrir um PR"
+        - "Posso ajudar com testes"
+        - "Posso ajudar com documentação"
+        - "Não, mas fico feliz se alguém implementar"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: "Contexto adicional"
+      description: "Links, referências, protótipos, mockups ou qualquer coisa relevante."

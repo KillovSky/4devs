@@ -1,0 +1,118 @@
+name: "🐛 Relatar um Bug"
+description: "Encontrou um problema? Descreva-o aqui para que possamos investigar."
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Antes de abrir a issue
+
+        - Verifique se já existe uma issue similar em aberto.
+        - Certifique-se de estar usando a **versão mais recente** do projeto.
+
+  - type: checkboxes
+    id: latest_version
+    attributes:
+      label: "Você está usando a versão mais recente?"
+      description: "Bugs já resolvidos não serão reabertos em versões antigas."
+      options:
+        - label: "Sim, estou na versão mais recente (verifique com `git pull` ou `npm update`)"
+          required: true
+
+  - type: checkboxes
+    id: existing_issue
+    attributes:
+      label: "Você buscou issues similares?"
+      options:
+        - label: "Sim, não encontrei issue idêntica em aberto"
+          required: true
+
+  - type: dropdown
+    id: node_version
+    attributes:
+      label: "Versão do Node.js"
+      description: "Execute `node -v` para verificar."
+      options:
+        - "v20.x (LTS Mínimo)"
+        - "v22.x (LTS Atual)"
+        - "v23.x ou superior"
+        - "Outra (informe nos detalhes adicionais)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: "Sistema Operacional"
+      multiple: true
+      options:
+        - "Linux (Ubuntu / Debian)"
+        - "Linux (Arch / Manjaro)"
+        - "Linux (Fedora / RHEL)"
+        - "Linux (outra distro)"
+        - "Windows 10"
+        - "Windows 11"
+        - "macOS"
+        - "Termux (Android)"
+        - "Docker"
+        - "Outro (informe nos detalhes)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Área afetada"
+      description: "Em qual parte do sistema o problema ocorre?"
+      multiple: true
+      options:
+        - "Código Geral"
+        - "Redes / API"
+        - "Infraestrutura Geral"
+        - "Build / TypeScript"
+        - "Testes"
+        - "Outro"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Descrição do problema"
+      description: "Descreva o que está acontecendo de forma clara e objetiva."
+      placeholder: "Ao fazer X, o sistema faz Y, mas o esperado era Z."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Passos para reproduzir"
+      description: "Liste os passos exatos para reproduzir o problema."
+      placeholder: |
+        1. Instale o módulo
+        2. Execute o comando X
+        3. Observe o erro Y no terminal
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Comportamento esperado"
+      placeholder: "O sistema deveria..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs de erro"
+      description: "Cole o stack trace ou mensagem de erro. Use blocos de código."
+      render: shell
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: "Informações adicionais"
+      description: "Capturas de tela, configurações relevantes (sem senhas!), contexto extra."

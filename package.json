@@ -1,56 +1,81 @@
 {
   "name": "@killovsky/4devs",
-  "version": "1.0.1",
-  "description": "Módulo para geração de dados falsos com base no site 4Devs.",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Cliente nativo, sem dependências, para geração e validação de dados brasileiros fictícios (pessoa, CPF, CNPJ, RG, CNH, PIS/PASEP, RENAVAM, título de eleitor, inscrição estadual, certidões, conta bancária, cartão de crédito, veículo, placa, empresa, cidades e UF) via 4devs.com.br. CLI e suporte completo a TypeScript/ESM/CommonJS.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "4devs": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "readme.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "test": "node test.js"
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "pretest": "npm run build",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:watch": "node --import tsx --test --watch tests/*.test.ts"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/KillovSky/4DEVS.git"
+    "url": "git+https://github.com/KillovSky/4devs.git"
   },
   "keywords": [
-    "data",
     "4devs",
-    "banco",
     "cpf",
+    "cnpj",
     "rg",
-    "cep",
-    "idade",
-    "gerador",
-    "fake",
-    "fakedata",
-	"easy",
-	"no-dependencies",
-    "dados",
+    "cnh",
+    "pis-pasep",
+    "renavam",
+    "titulo-de-eleitor",
+    "inscricao-estadual",
+    "certidao",
+    "conta-bancaria",
+    "cartao-de-credito",
+    "veiculo",
+    "placa",
+    "empresa",
+    "fake-data",
     "generator",
-    "bank",
-    "cartao",
-    "credito",
-    "password",
-    "senha",
-    "gerar",
-    "cnpj"
+    "validator",
+    "brazil",
+    "cli",
+    "typescript",
+    "esm",
+    "commonjs",
+    "zero-dependency"
   ],
-  "author": "KillovSky",
+  "author": "killovsky",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/KillovSky/4DEVS/issues"
+    "url": "https://github.com/killovsky/4devs/issues"
   },
-  "homepage": "https://github.com/KillovSky/4DEVS#readme",
-  "funding": [
-    {
-      "type": "kofi",
-      "url": "http://ko-fi.com/killovsky"
-    },
-    {
-      "type": "paypal",
-      "url": "https://bit.ly/33QDaGa"
-    },
-    {
-      "type": "picpay",
-      "url": "https://picpay.me/userlucas123"
-    }
-  ]
+  "homepage": "https://github.com/killovsky/4devs#readme",
+  "devDependencies": {
+    "@types/node": "^20.14.15",
+    "tsup": "^8.2.4",
+    "tsx": "^4.23.12",
+    "typescript": "^5.5.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
