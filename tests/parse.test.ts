@@ -2,13 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   decodeHtmlEntities, stripTags, extractLabeledPairs, extractStrongInputPairs,
-  extractOptionTexts, parseVerdadeiroFalso,
+  extractOptionTexts, extractDivTextsByClass, parseVerdadeiroFalso,
 } from '../dist/index.js';
 
 test('decodeHtmlEntities: nomeadas, decimais e hexadecimais', () => {
   assert.equal(decodeHtmlEntities('S&atilde;o Paulo'), 'São Paulo');
   assert.equal(decodeHtmlEntities('&#67;&#97;f&#233;'), 'Café');
-  assert.equal(decodeHtmlEntities('&#x43;afe&#x301;'.replace('&#x301;', '')), 'Cafe');
+  assert.equal(decodeHtmlEntities('&#x43;afe'), 'Cafe');
 });
 
 test('stripTags: remove tags e normaliza espaços', () => {
@@ -28,9 +28,9 @@ test('extractLabeledPairs: pares simples (output-subtitle / output-txt)', () => 
   });
 });
 
-test('extractLabeledPairs: REGRESSÃO — funciona mesmo com <div> aninhados em volta (grid/coluna)', () => {
-  // Este é exatamente o padrão que quebrava uma regex ingênua <div>...<\/div>,
-  // porque a tag de fechamento mais próxima não é a correspondente.
+test('extractLabeledPairs: lê os valores mesmo com <div> de layout em volta', () => {
+  // Uma regex simples de <div>...</div> pararia na primeira tag de fechamento, que
+  // aqui não é a do elemento procurado.
   const html = `
     <div class="row">
       <div class="col-md-6">
@@ -76,4 +76,50 @@ test('parseVerdadeiroFalso: último segmento por padrão, penúltimo quando from
   assert.equal(parseVerdadeiroFalso('CPF: 123.456.789-09 - Válido - Verdadeiro'), true);
   assert.equal(parseVerdadeiroFalso('CPF: 111.111.111-11 - Inválido - Falso'), false);
   assert.equal(parseVerdadeiroFalso('Título: 123456789012 - Verdadeiro - Válido', 2), true);
+});
+
+test('decodeHtmlEntities: entidade numérica fora do intervalo Unicode não lança e fica como está', () => {
+  assert.equal(decodeHtmlEntities('a &#99999999999; b'), 'a &#99999999999; b');
+  assert.equal(decodeHtmlEntities('&entidadeinexistente;'), '&entidadeinexistente;');
+});
+
+test('stripTags: "<" solto no texto não é tag', () => {
+  assert.equal(stripTags('1 < 2 e 3 > 2'), '1 < 2 e 3 > 2');
+});
+
+test('stripTags: ">" dentro de aspas de atributo não fecha a tag', () => {
+  assert.equal(stripTags('<a title="a > b">texto</a>'), 'texto');
+});
+
+test('stripTags: comentário é removido e tag sem fechamento é descartada', () => {
+  assert.equal(stripTags('a<!-- b > c -->d'), 'a d');
+  assert.equal(stripTags('texto <b class="x'), 'texto');
+});
+
+test('extractDivTextsByClass: elementos aninhados com a mesma classe saem na ordem de abertura', () => {
+  const html = '<div class="x">fora <div class="x">dentro</div> fim</div><div class="x">outro</div>';
+  assert.deepEqual(extractDivTextsByClass(html, 'x'), ['fora dentro fim', 'dentro', 'outro']);
+});
+
+test('extractDivTextsByClass: elemento que não fecha vai até o fim', () => {
+  assert.deepEqual(extractDivTextsByClass('<div class="x">sem fim', 'x'), ['sem fim']);
+});
+
+test('parser: entradas montadas para ficar lentas terminam rápido', () => {
+  const inputs = [
+    '<div class="x">'.repeat(40_000),
+    '<a '.repeat(80_000),
+    '<'.repeat(150_000),
+    '<option>'.repeat(30_000),
+    `<strong>${'<strong>'.repeat(20_000)}`,
+  ];
+
+  for (const input of inputs) {
+    const start = Date.now();
+    stripTags(input);
+    extractDivTextsByClass(input, 'x');
+    extractStrongInputPairs(input);
+    extractOptionTexts(input);
+    assert.ok(Date.now() - start < 2000, `demorou demais para a entrada que começa com ${input.slice(0, 12)}`);
+  }
 });

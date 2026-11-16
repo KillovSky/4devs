@@ -4,22 +4,17 @@ import type { FourDevsResult, HttpCodeExplain } from './types.js';
 
 const HTTP_CODES = httpCodesJson as unknown as Record<string, HttpCodeExplain>;
 
-/** Retorna a tabela de explicações de status HTTP embutida no pacote. */
+/** Tabela com a explicação dos códigos de status HTTP. */
 export function getHttpCodes(): Record<string, HttpCodeExplain> {
   return HTTP_CODES;
 }
 
 /**
- * Converte uma resposta HTTP bruta do 4devs no envelope público
- * `FourDevsResult<T>`.
+ * Monta o `FourDevsResult` a partir da resposta bruta do 4devs.
  *
- * Se a requisição falhou (rede, timeout ou status não-2xx) **ou** se
- * `transform` lançar uma exceção ao interpretar o corpo da resposta (sinal
- * de que o formato mudou ou o site bloqueou a chamada), a função cai
- * automaticamente para `fallback()` — que gera/valida o mesmo dado
- * localmente — em vez de propagar o erro. O resultado final tem
- * `success: true` e `source: "local"` nesse caso; o motivo da queda para o
- * modo local fica em `warning`.
+ * Se a requisição falhou, ou se `transform` lançar erro ao ler o corpo (o formato
+ * do site mudou, por exemplo), o dado é produzido por `fallback()`, localmente, e o
+ * resultado sai com `source: 'local'` e o motivo em `warning`. A função não lança.
  */
 export function buildResult<T>(
   raw: RawApiResult,
@@ -34,16 +29,15 @@ export function buildResult<T>(
 
   if (raw.ok) {
     try {
-      const data = transform(raw.body);
-      return { ...base, success: true, error: null, data, source: 'network' as const, warning: null };
+      return { ...base, success: true, error: null, data: transform(raw.body), source: 'network', warning: null };
     } catch (err) {
       return {
         ...base,
         success: true,
         error: null,
         data: fallback(),
-        source: 'local' as const,
-        warning: `A resposta do 4devs.com.br veio em um formato inesperado (${(err as Error).message}); os dados foram gerados/validados localmente como alternativa.`,
+        source: 'local',
+        warning: `A resposta do 4devs.com.br veio em um formato inesperado (${(err as Error).message}); os dados foram gerados ou validados localmente.`,
       };
     }
   }
@@ -53,12 +47,12 @@ export function buildResult<T>(
     success: true,
     error: null,
     data: fallback(),
-    source: 'local' as const,
-    warning: `Não foi possível falar com o 4devs.com.br (${raw.error ?? `status HTTP ${raw.status}`}); os dados foram gerados/validados localmente como alternativa.`,
+    source: 'local',
+    warning: `Não foi possível falar com o 4devs.com.br (${raw.error ?? `status HTTP ${raw.status}`}); os dados foram gerados ou validados localmente.`,
   };
 }
 
-/** Constrói um `FourDevsResult<T>` "local" (sem requisição HTTP), usado por funções puramente locais como `uf()` e `vehicleBrand()`. */
+/** Resultado de uma função que nunca usa a rede, como `uf()` e `vehicleBrand()`. */
 export function buildLocalResult<T>(data: T): FourDevsResult<T> {
   return {
     date: new Date().toISOString(),

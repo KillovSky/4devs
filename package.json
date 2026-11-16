@@ -1,7 +1,7 @@
 {
   "name": "@killovsky/4devs",
-  "version": "2.0.1",
-  "description": "Cliente nativo, sem dependências, para geração e validação de dados brasileiros fictícios (pessoa, CPF, CNPJ, RG, CNH, PIS/PASEP, RENAVAM, título de eleitor, inscrição estadual, certidões, conta bancária, cartão de crédito, veículo, placa, empresa, cidades e UF) via 4devs.com.br. CLI e suporte completo a TypeScript/ESM/CommonJS.",
+  "version": "2.1.0",
+  "description": "Cliente, sem dependências, para gerar e validar dados brasileiros fictícios (CPF, CNPJ, RG, CNH, cartão, veículo e outros) via 4devs.com.br, com modo local, CLI e tipos TypeScript.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -41,6 +41,7 @@
     "4devs",
     "cpf",
     "cnpj",
+    "cnpj-alfanumerico",
     "rg",
     "cnh",
     "pis-pasep",

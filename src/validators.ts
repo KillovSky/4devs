@@ -1,19 +1,13 @@
-/**
- * fordev-native/validators
- * ------------------------
- * Validadores de documentos/dados brasileiros via 4devs.com.br.
- *
- * Todas as funções devolvem um `FourDevsResult<ValidationResult>` — verifique
- * `data.isValid` para o resultado booleano da validação. Se a requisição ao
- * 4devs falhar, a validação é feita localmente como alternativa (veja
- * `local/validators.ts` e o campo `source`/`warning` do resultado).
- */
+// Validadores de documentos e dados brasileiros via 4devs.com.br. O resultado fica em
+// `data.isValid`. Se a requisição falhar, a validação é refeita localmente (veja
+// local/validators.ts e os campos `source` e `warning`).
 
 import { assertValidUF, BANK_ACCOUNT_BANKS, CREDIT_CARD_VALIDATOR_FLAGS } from './consts.js';
 import { fordevRequest } from './http.js';
 import { localValidators } from './local/validators.js';
 import { parseVerdadeiroFalso, stripTags } from './parse.js';
 import { buildResult } from './result.js';
+import type { UFCode } from './consts.js';
 import type {
   BankAccountValidationOptions,
   CreditCardValidationOptions,
@@ -23,6 +17,12 @@ import type {
   ValidationResult,
 } from './types.js';
 
+function assertText(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new TypeError(`${label} deve ser um texto não vazio.`);
+  }
+}
+
 function verdict(fromEnd = 1) {
   return (body: string): ValidationResult => ({
     isValid: parseVerdadeiroFalso(body, fromEnd),
@@ -30,50 +30,51 @@ function verdict(fromEnd = 1) {
   });
 }
 
-/** Verifica se um código de CPF é válido. */
+/** Confere um CPF. */
 export async function cpf(code: string, options: RequestTimeoutOption = {}): Promise<FourDevsResult<ValidationResult>> {
+  assertText(code, 'O código');
   const raw = await fordevRequest('validador_cpf', { acao: 'validar_cpf', txt_cpf: code }, options);
   return buildResult(raw, verdict(), () => localValidators.cpf(code));
 }
 
-/** Verifica se um código de CNPJ é válido. */
+/** Confere um CNPJ. Na validação local, aceita também o CNPJ alfanumérico. */
 export async function cnpj(code: string, options: RequestTimeoutOption = {}): Promise<FourDevsResult<ValidationResult>> {
+  assertText(code, 'O código');
   const raw = await fordevRequest('validador_cnpj', { acao: 'validar_cnpj', txt_cnpj: code }, options);
   return buildResult(raw, verdict(), () => localValidators.cnpj(code));
 }
 
-/** Verifica se um código de RG é válido. */
+/** Confere um RG. */
 export async function rg(code: string, options: RequestTimeoutOption = {}): Promise<FourDevsResult<ValidationResult>> {
+  assertText(code, 'O código');
   const raw = await fordevRequest('validador_rg', { acao: 'validar_rg', txt_rg: code }, options);
   return buildResult(raw, verdict(), () => localValidators.rg(code));
 }
 
-/** Verifica se um número de CNH é válido. */
+/** Confere uma CNH. */
 export async function cnh(code: string, options: RequestTimeoutOption = {}): Promise<FourDevsResult<ValidationResult>> {
+  assertText(code, 'O código');
   const raw = await fordevRequest('validador_cnh', { acao: 'validar_cnh', txt_cnh: code }, options);
   return buildResult(raw, verdict(), () => localValidators.cnh(code));
 }
 
-/** Verifica se um código de PIS/PASEP é válido. */
+/** Confere um PIS/PASEP. */
 export async function pisPasep(code: string, options: RequestTimeoutOption = {}): Promise<FourDevsResult<ValidationResult>> {
+  assertText(code, 'O código');
   const raw = await fordevRequest('validador_pis_pasep', { acao: 'validar_pis', txt_pis: code }, options);
   return buildResult(raw, verdict(), () => localValidators.pisPasep(code));
 }
 
-/** Verifica se um código de RENAVAM é válido. */
+/** Confere um RENAVAM. */
 export async function renavam(code: string, options: RequestTimeoutOption = {}): Promise<FourDevsResult<ValidationResult>> {
+  assertText(code, 'O código');
   const raw = await fordevRequest('validador_de_renavam', { acao: 'validar_renavam', txt_renavam: code }, options);
   return buildResult(raw, verdict(), () => localValidators.renavam(code));
 }
 
-/**
- * Verifica se um número de título de eleitor é válido.
- *
- * Nota: por peculiaridade do próprio 4devs, a resposta desta ferramenta
- * específica traz o veredito no penúltimo (não no último) segmento do texto
- * — já tratado internamente.
- */
+/** Confere um título de eleitor. A resposta do 4devs para esta ferramenta traz o veredito no penúltimo segmento, e isso já é tratado aqui. */
 export async function voterTitle(code: string, options: RequestTimeoutOption = {}): Promise<FourDevsResult<ValidationResult>> {
+  assertText(code, 'O código');
   const raw = await fordevRequest(
     'validador_titulo_de_eleitor',
     { acao: 'validar_titulo_eleitor', txt_titulo_eleitor: code },
@@ -82,16 +83,18 @@ export async function voterTitle(code: string, options: RequestTimeoutOption = {
   return buildResult(raw, verdict(2), () => localValidators.voterTitle(code));
 }
 
-/** Verifica se um código de certidão (nascimento, casamento, casamento religioso ou óbito) é válido. */
+/** Confere a matrícula de uma certidão. */
 export async function certificate(code: string, options: RequestTimeoutOption = {}): Promise<FourDevsResult<ValidationResult>> {
+  assertText(code, 'O código');
   const raw = await fordevRequest('validador_certidoes', { acao: 'validar_certidao', txt_certidao: code }, options);
   return buildResult(raw, verdict(), () => localValidators.certificate(code));
 }
 
-/** Verifica se uma inscrição estadual é válida para o estado informado. */
+/** Confere uma inscrição estadual do estado informado. */
 export async function stateRegistration(
   options: StateRegistrationValidationOptions,
 ): Promise<FourDevsResult<ValidationResult>> {
+  assertText(options.code, 'O código');
   const uf = options.uf.toUpperCase();
   assertValidUF(uf);
 
@@ -101,13 +104,15 @@ export async function stateRegistration(
     options,
   );
 
-  return buildResult(raw, verdict(), () => localValidators.stateRegistration({ ...options, uf: uf as never }));
+  return buildResult(raw, verdict(), () => localValidators.stateRegistration({ ...options, uf: uf as UFCode }));
 }
 
-/** Verifica se os dados (banco + agência + conta) de uma conta bancária são válidos. */
+/** Confere banco, agência e conta. */
 export async function bankAccount(
   options: BankAccountValidationOptions,
 ): Promise<FourDevsResult<ValidationResult>> {
+  assertText(options.agency, 'A agência');
+  assertText(options.account, 'A conta');
   const bank = BANK_ACCOUNT_BANKS[options.bank];
   if (!bank) {
     throw new RangeError(
@@ -124,10 +129,11 @@ export async function bankAccount(
   return buildResult(raw, verdict(), () => localValidators.bankAccount(options));
 }
 
-/** Verifica se um número de cartão de crédito é válido para a bandeira informada. */
+/** Confere um número de cartão para a bandeira informada. */
 export async function creditCard(
   options: CreditCardValidationOptions,
 ): Promise<FourDevsResult<ValidationResult>> {
+  assertText(options.code, 'O número do cartão');
   const flagValue = CREDIT_CARD_VALIDATOR_FLAGS[options.flag];
   if (!flagValue) {
     throw new RangeError(

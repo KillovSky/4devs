@@ -37,7 +37,18 @@ test('Certidão: matrícula de 32 dígitos, formatação com pontuação', () =>
   const raw = generateCertificateDigits();
   assert.equal(raw.length, 32);
   assert.equal(isPlausibleCertificate(raw), true);
-  assert.match(formatCertificate(raw), /^\d{6}\.\d{2}\.\d{2}\.\d{2}\.\d{1}\.\d{5}\.\d{3}\.\d{7}-\d{2}$/);
+  const formatted = formatCertificate(raw);
+  assert.match(formatted, /^\d{6}\.\d{2}\.\d{2}\.\d{4}\.\d\.\d{5}\.\d{3}\.\d{7}-\d{2}$/);
+  assert.equal(formatted.replace(/\D/g, ''), raw); // a pontuação não pode perder dígitos
+});
+
+test('Certidão: o dígito do tipo do livro segue o tipo pedido', () => {
+  const position = (type: Parameters<typeof generateCertificateDigits>[0]) => generateCertificateDigits(type)[14];
+  assert.equal(position('birth'), '1');
+  assert.equal(position('wedding'), '2');
+  assert.equal(position('religiousWedding'), '3');
+  assert.equal(position('death'), '4');
+  assert.match(position('any'), /^[1-4]$/);
 });
 
 test('Placa: padrão Mercosul (LLLNLNN) e padrão antigo (LLL-NNNN)', () => {

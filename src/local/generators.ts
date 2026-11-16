@@ -1,34 +1,26 @@
-/**
- * fordev-native/local/generators
- * --------------------------------
- * Geração de dados inteiramente local (sem nenhuma requisição de rede).
- *
- * Usada como modo de contingência pelas funções de `generators.ts` quando o
- * 4devs.com.br está fora do ar, mas também exportada como `local.generators`
- * para quem quiser gerar dados garantidamente offline, de propósito.
- *
- * Onde existe uma regra de dígito verificador nacional real (CPF, CNPJ,
- * PIS/PASEP, RENAVAM, CNH, cartão de crédito), ela é aplicada de verdade —
- * os documentos "fecham" nos mesmos algoritmos usados para validação. Para o
- * resto (nomes, endereços, cidades, dados de empresa...) é uma composição
- * simples a partir de listas pequenas embutidas no pacote.
- */
+// Geradores sem rede. As funções de generators.ts usam estes quando o 4devs.com.br
+// não responde, e eles também ficam disponíveis como `local.generators`.
+//
+// CPF, CNPJ, PIS/PASEP, RENAVAM, CNH e cartão têm dígito verificador de verdade.
+// O resto (nomes, endereços, empresas) é montado a partir de listas pequenas
+// embutidas no pacote.
 
-import { UF_CODES, VEHICLE_BRANDS, BANK_ACCOUNT_BANKS, CREDIT_CARD_GENERATOR_FLAGS, CERTIFICATE_TYPES, findVehicleBrand } from '../consts.js';
+import { BANK_ACCOUNT_BANKS, CERTIFICATE_TYPES, findVehicleBrand, UF_CODES, VEHICLE_BRANDS } from '../consts.js';
+import type { CreditCardGeneratorFlag } from '../consts.js';
 import type {
   BankAccountInfo, BankAccountOptions, CertificateOptions, CityOptions, CompanyInfo,
-  CompanyOptions, CpfOptions, CreditCardInfo, CreditCardOptions, FakePerson,
+  CnpjOptions, CompanyOptions, CpfOptions, CreditCardInfo, CreditCardOptions, FakePerson,
   FormattingOptions, PeopleOptions, StateRegistrationOptions, VehicleInfo,
   VehicleOptions, VehiclePlateOptions, VoterTitleOptions,
 } from '../types.js';
 import {
-  formatCnpj, formatCpf, formatPisPasep, generateCardDigits, generateCnhDigits,
+  formatCnpj, formatCpf, formatPisPasep, generateAlphanumericCnpj, generateCardDigits, generateCnhDigits,
   generateCnpjDigits, generateCpfDigits, generatePisDigits, generateRenavamDigits,
 } from './checksums.js';
 import {
   BLOOD_TYPES, COMPANY_ACTIVITIES, COMPANY_SUFFIXES, EYE_HAIR_COLORS,
   FIRST_NAMES_FEMALE, FIRST_NAMES_MALE, NEIGHBORHOODS, SAMPLE_CITIES_BY_UF,
-  STREET_NAMES, STREET_PREFIXES, SURNAMES, randomInt, randomItem,
+  STREET_NAMES, STREET_PREFIXES, SURNAMES,
 } from './data.js';
 import {
   formatCertificate, formatRg, generateAccountNumber, generateAgency,
@@ -36,15 +28,11 @@ import {
   generateStateRegistrationDigits, generateVoterTitleDigits,
 } from './plausible.js';
 
-import { randomDigitString } from './secureRandom.js';
+import { randomDigitString, randomInt, randomItem } from '../random.js';
 
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(Math.max(Math.floor(value), min), max);
-}
-
-function digitString(length: number): string {
-  return randomDigitString(length);
 }
 
 function slugify(value: string): string {
@@ -66,7 +54,7 @@ function zodiacSign(day: number, month: number): string {
   for (const [m1, d1, m2, d2, name] of ZODIAC_RANGES) {
     if ((month === m1 && day >= d1) || (month === m2 && day <= d2) || (month > m1 && month < m2)) return name;
   }
-  return 'Capricórnio'; // 22 dez – 19 jan (atravessa o fim do ano)
+  return 'Capricórnio'; // 22/12 a 19/01, atravessa a virada do ano
 }
 
 function cityFor(uf: string): string {
@@ -104,15 +92,15 @@ export function people(options: PeopleOptions = {}): FakePerson[] {
       mae: `${randomItem(FIRST_NAMES_FEMALE)} ${randomItem(SURNAMES)}`,
       pai: `${randomItem(FIRST_NAMES_MALE)} ${randomItem(SURNAMES)}`,
       email: `${slugify(firstName)}.${slugify(surname1)}${randomInt(1, 999)}@exemplo.com`,
-      senha: digitString(4) + slugify(surname2).slice(0, 4),
-      cep: `${digitString(5)}-${digitString(3)}`,
+      senha: randomDigitString(4) + slugify(surname2).slice(0, 4),
+      cep: `${randomDigitString(5)}-${randomDigitString(3)}`,
       endereco: `${randomItem(STREET_PREFIXES)} ${randomItem(STREET_NAMES)}`,
       numero: randomInt(1, 2000),
       bairro: randomItem(NEIGHBORHOODS),
       cidade: cityFor(uf),
       estado: uf,
-      telefone_fixo: `(${randomInt(11, 99)}) ${digitString(4)}-${digitString(4)}`,
-      celular: `(${randomInt(11, 99)}) 9${digitString(4)}-${digitString(4)}`,
+      telefone_fixo: `(${randomInt(11, 99)}) ${randomDigitString(4)}-${randomDigitString(4)}`,
+      celular: `(${randomInt(11, 99)}) 9${randomDigitString(4)}-${randomDigitString(4)}`,
       altura: `1,${randomInt(50, 99)}`,
       peso: randomInt(50, 120),
       tipo_sanguineo: randomItem(BLOOD_TYPES),
@@ -128,9 +116,9 @@ export function cpf(options: CpfOptions = {}): string {
   return options.formatting === false ? digits.join('') : formatCpf(digits);
 }
 
-export function cnpj(options: FormattingOptions = {}): string {
-  const digits = generateCnpjDigits();
-  return options.formatting === false ? digits.join('') : formatCnpj(digits);
+export function cnpj(options: CnpjOptions = {}): string {
+  const raw = options.alphanumeric ? generateAlphanumericCnpj() : generateCnpjDigits().join('');
+  return options.formatting === false ? raw : formatCnpj(raw);
 }
 
 export function rg(options: FormattingOptions = {}): string {
@@ -155,20 +143,28 @@ export function voterTitle(options: VoterTitleOptions): string {
   return generateVoterTitleDigits(options.uf);
 }
 
-export function stateRegistration(options: StateRegistrationOptions = {}): string {
+// O tamanho varia por estado e aqui é sempre 12; `options` existe só para manter a
+// assinatura igual à de generators.stateRegistration.
+export function stateRegistration(_options: StateRegistrationOptions = {}): string {
   return generateStateRegistrationDigits();
 }
 
 export function certificate(options: CertificateOptions = {}): string {
-  const raw = generateCertificateDigits();
   const type = options.type ?? 'any';
-  void CERTIFICATE_TYPES[type]; // valida que o tipo existe (lança fora se não)
+  if (!Object.hasOwn(CERTIFICATE_TYPES, type)) {
+    throw new RangeError(`Tipo de certidão "${type}" é inválido. Use um de: ${Object.keys(CERTIFICATE_TYPES).join(', ')}.`);
+  }
+
+  const raw = generateCertificateDigits(type);
   return options.formatting === false ? raw : formatCertificate(raw);
 }
 
 export function bankAccount(options: BankAccountOptions = {}): BankAccountInfo {
   const bankKeys = Object.keys(BANK_ACCOUNT_BANKS) as Array<keyof typeof BANK_ACCOUNT_BANKS>;
   const bankKey = options.bank && options.bank !== 'random' ? options.bank : randomItem(bankKeys);
+  if (!Object.hasOwn(BANK_ACCOUNT_BANKS, bankKey)) {
+    throw new RangeError(`Banco "${bankKey}" é inválido. Use um de: random, ${bankKeys.join(', ')}.`);
+  }
   const bank = BANK_ACCOUNT_BANKS[bankKey];
   const uf = options.uf || randomItem(UF_CODES);
 
@@ -181,18 +177,37 @@ export function bankAccount(options: BankAccountOptions = {}): BankAccountInfo {
   };
 }
 
+// Prefixo e tamanho típicos de cada bandeira. Os números saem com prefixo da
+// bandeira e dígito verificador de Luhn; não são cartões reais.
+const CARD_PROFILES: Record<CreditCardGeneratorFlag, { prefixes: string[]; length: number }> = {
+  master: { prefixes: ['51', '52', '53', '54', '55'], length: 16 },
+  visa16: { prefixes: ['4'], length: 16 },
+  amex: { prefixes: ['34', '37'], length: 15 },
+  diners: { prefixes: ['36', '38'], length: 14 },
+  discover: { prefixes: ['6011'], length: 16 },
+  enroute: { prefixes: ['2014', '2149'], length: 15 },
+  jcb: { prefixes: ['3528', '3589'], length: 16 },
+  voyager: { prefixes: ['8699'], length: 15 },
+  hiper: { prefixes: ['606282'], length: 16 },
+  aura: { prefixes: ['50'], length: 16 },
+};
+
 export function creditCard(options: CreditCardOptions = {}): CreditCardInfo {
-  const flagKeys = Object.keys(CREDIT_CARD_GENERATOR_FLAGS) as Array<keyof typeof CREDIT_CARD_GENERATOR_FLAGS>;
+  const flagKeys = Object.keys(CARD_PROFILES) as CreditCardGeneratorFlag[];
   const flag = options.flag ?? randomItem(flagKeys);
-  const digits = generateCardDigits(16).join('');
-  const formatting = options.formatting !== false;
+  if (!Object.hasOwn(CARD_PROFILES, flag)) {
+    throw new RangeError(`Bandeira "${flag}" é inválida. Use uma de: ${flagKeys.join(', ')}.`);
+  }
+
+  const profile = CARD_PROFILES[flag];
+  const digits = generateCardDigits(profile.length, randomItem(profile.prefixes)).join('');
   const expYear = new Date().getFullYear() + randomInt(1, 6);
 
   return {
     Bandeira: flag,
-    Número: formatting ? digits.replace(/(\d{4})(?=\d)/g, '$1 ') : digits,
+    Número: options.formatting === false ? digits : digits.replace(/(\d{4})(?=\d)/g, '$1 '),
     Validade: `${String(randomInt(1, 12)).padStart(2, '0')}/${expYear}`,
-    CVV: digitString(3),
+    CVV: randomDigitString(flag === 'amex' ? 4 : 3),
   };
 }
 
@@ -212,20 +227,22 @@ export function vehicle(options: VehicleOptions = {}): VehicleInfo {
   };
 }
 
-export function vehiclePlate(options: VehiclePlateOptions = {}): string {
+// Sempre no padrão Mercosul; `options` existe só para manter a assinatura igual à
+// de generators.vehiclePlate.
+export function vehiclePlate(_options: VehiclePlateOptions = {}): string {
   return generatePlate(true);
 }
 
 export function company(options: CompanyOptions = {}): CompanyInfo {
   const uf = options.uf || 'SP';
-  const cnpjDigits = generateCnpjDigits();
+  const cnpjRaw = generateCnpjDigits().join('');
   const formatting = options.formatting !== false;
 
   return {
     'Razão Social': `${randomItem(COMPANY_ACTIVITIES)} ${randomItem(SURNAMES)} ${randomItem(COMPANY_SUFFIXES)}`,
-    CNPJ: formatting ? formatCnpj(cnpjDigits) : cnpjDigits.join(''),
+    CNPJ: formatting ? formatCnpj(cnpjRaw) : cnpjRaw,
     'Inscrição Estadual': generateStateRegistrationDigits(),
-    CEP: `${digitString(5)}-${digitString(3)}`,
+    CEP: `${randomDigitString(5)}-${randomDigitString(3)}`,
     Endereço: `${randomItem(STREET_PREFIXES)} ${randomItem(STREET_NAMES)}, ${randomInt(1, 2000)}`,
     Bairro: randomItem(NEIGHBORHOODS),
     Cidade: cityFor(uf),

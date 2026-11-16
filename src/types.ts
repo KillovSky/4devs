@@ -12,14 +12,11 @@ export interface HttpCodeExplain {
   why: string;
 }
 
-/**
- * Envelope de resposta padrão devolvido por **todas** as funções deste
- * módulo (geradores e validadores).
- */
+/** Formato de resposta de todas as funções do módulo, geradores e validadores. */
 export interface FourDevsResult<T> {
   /** Data/hora (ISO 8601) em que a resposta foi processada. */
   date: string;
-  /** `true` quando a chamada foi bem-sucedida e `data` está preenchido. */
+  /** `true` quando `data` está preenchido. As funções do módulo só devolvem `false` em casos que hoje não acontecem. */
   success: boolean;
   /** Status HTTP da resposta (ou `0` em caso de falha de rede/timeout). */
   status: number;
@@ -29,30 +26,19 @@ export interface FourDevsResult<T> {
   error: string | null;
   /** Dado processado. `null` quando `success` é `false`. */
   data: T | null;
-  /**
-   * De onde `data` veio: `"network"` quando obtido do 4devs.com.br, ou
-   * `"local"` quando gerado/validado localmente porque a requisição ao
-   * 4devs falhou (veja `warning` para o motivo).
-   */
+  /** De onde veio `data`: do 4devs.com.br (`"network"`) ou gerado/validado aqui mesmo (`"local"`). */
   source: 'network' | 'local';
-  /**
-   * Presente quando `source` é `"local"`: explica por que o modo de
-   * contingência foi usado e, para validadores sem algoritmo nacional
-   * único (RG, título de eleitor, inscrição estadual, certidão, conta
-   * bancária), avisa que a checagem local é apenas de formato.
-   */
+  /** Quando `source` é `"local"` por causa de uma falha, explica o motivo. */
   warning: string | null;
 }
 
-/** Opções comuns de timeout aceitas por toda função que faz requisição HTTP. */
+/** Opção de tempo limite, aceita por toda função que faz requisição. */
 export interface RequestTimeoutOption {
-  /** Timeout da requisição, em milissegundos. Padrão: 15000. */
+  /** Tempo limite da requisição, em ms. Padrão: 15000. */
   timeout?: number;
 }
 
-// ---------------------------------------------------------------------------
-// Generators
-// ---------------------------------------------------------------------------
+// Geradores
 
 export type Sex = 'M' | 'F' | 'random';
 
@@ -69,7 +55,7 @@ export interface PeopleOptions extends RequestTimeoutOption {
   formatting?: boolean;
 }
 
-/** Um registro de pessoa fictícia completo, gerado pela ferramenta "Gerador de Pessoas". */
+/** Um registro de pessoa fictícia completo, gerado pela ferramenta "Gerador de Pessoas" do 4devs. */
 export interface FakePerson {
   nome: string;
   idade: number;
@@ -109,6 +95,14 @@ export interface FormattingOptions extends RequestTimeoutOption {
   formatting?: boolean;
 }
 
+export interface CnpjOptions extends FormattingOptions {
+  /**
+   * Gera um CNPJ alfanumérico, o formato que passou a valer em julho de 2026. Não faz
+   * requisição: a geração é sempre local. Padrão: `false`.
+   */
+  alphanumeric?: boolean;
+}
+
 export interface VoterTitleOptions extends RequestTimeoutOption {
   /** Estado de emissão do título de eleitor (obrigatório). */
   uf: UFCode;
@@ -135,7 +129,7 @@ export interface BankAccountOptions extends RequestTimeoutOption {
   uf?: UFCode;
 }
 
-/** Dados de conta bancária, extraídos do fragmento HTML retornado pelo 4devs. */
+/** Dados de conta bancária. */
 export type BankAccountInfo = Record<string, string>;
 
 export interface CreditCardOptions extends RequestTimeoutOption {
@@ -145,7 +139,7 @@ export interface CreditCardOptions extends RequestTimeoutOption {
   formatting?: boolean;
 }
 
-/** Dados de cartão de crédito, extraídos do fragmento HTML retornado pelo 4devs. */
+/** Dados de cartão de crédito. */
 export type CreditCardInfo = Record<string, string>;
 
 export interface VehicleOptions extends RequestTimeoutOption {
@@ -157,7 +151,7 @@ export interface VehicleOptions extends RequestTimeoutOption {
   formatting?: boolean;
 }
 
-/** Dados de veículo, extraídos do fragmento HTML retornado pelo 4devs. */
+/** Dados de veículo. */
 export type VehicleInfo = Record<string, string>;
 
 export interface VehicleBrandOptions {
@@ -181,7 +175,7 @@ export interface CompanyOptions extends RequestTimeoutOption {
   formatting?: boolean;
 }
 
-/** Dados de empresa, extraídos do fragmento HTML retornado pelo 4devs. */
+/** Dados de empresa. */
 export type CompanyInfo = Record<string, string>;
 
 export interface CityOptions extends RequestTimeoutOption {
@@ -194,9 +188,7 @@ export interface UfOptions {
   n?: number;
 }
 
-// ---------------------------------------------------------------------------
-// Validators
-// ---------------------------------------------------------------------------
+// Validadores
 
 /** Resultado da validação de um documento/dado. */
 export interface ValidationResult {

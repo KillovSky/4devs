@@ -4,10 +4,10 @@ import { generators, validators } from '../dist/index.js';
 
 test('generators.uf/vehicleBrand: síncronos, locais, e respeitam limites (clamp)', () => {
   const ufs = generators.uf({ n: 100 });
-  assert.equal(ufs.data?.length, 27); // clampa no total de UFs
+  assert.equal(ufs.data?.length, 27); // limitado ao total de UFs
 
   const brands = generators.vehicleBrand({ n: 0 });
-  assert.equal(brands.data?.length, 1); // clampa para o mínimo
+  assert.equal(brands.data?.length, 1); // mínimo de 1
 
   const someUfs = generators.uf({ n: 3 });
   assert.equal(new Set(someUfs.data).size, 3); // sem repetição
@@ -36,4 +36,12 @@ test('validators.*: lançam erro síncrono para entradas inválidas, sem tentar 
     () => validators.stateRegistration({ uf: 'XX' as never, code: '123' }),
     RangeError,
   );
+});
+
+test('validators.*: código que não é texto, ou está vazio, é recusado sem tentar rede', async () => {
+  await assert.rejects(() => validators.cpf(undefined as never), TypeError);
+  await assert.rejects(() => validators.cnpj('   '), TypeError);
+  await assert.rejects(() => validators.creditCard({ flag: 'visa', code: 123 as never }), TypeError);
+  await assert.rejects(() => validators.bankAccount({ bank: 'itau', agency: '', account: '1' }), TypeError);
+  await assert.rejects(() => validators.stateRegistration({ uf: 'SP', code: undefined as never }), TypeError);
 });

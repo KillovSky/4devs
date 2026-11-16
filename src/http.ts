@@ -1,43 +1,37 @@
-/**
- * Núcleo de requisições HTTP para a API pública do 4devs.com.br.
- *
- * Todas as ferramentas (geradores e validadores) do site conversam com o
- * mesmo endpoint, `POST /ferramentas_online.php`, diferenciando o que fazer
- * através do campo `acao` do corpo da requisição e do header `Referer`
- * (que deve apontar para a página da ferramenta correspondente).
- */
+// Todas as ferramentas do 4devs usam o mesmo endpoint (POST /ferramentas_online.php).
+// O que muda é o campo `acao` do corpo e o header `Referer`, que precisa apontar
+// para a página da ferramenta.
 
 const API_URL = 'https://www.4devs.com.br/ferramentas_online.php';
 const ORIGIN = 'https://www.4devs.com.br';
+const DEFAULT_TIMEOUT = 15000;
 
-/**
- * Teto de tamanho para o corpo da resposta. As respostas reais do 4devs são
- * pequenas (a maior é a lista de cidades de SP, algo como algumas dezenas de
- * KB) — este limite existe como defesa em profundidade: `parse.ts` usa
- * regex para extrair conteúdo desses fragmentos, e um corpo de resposta
- * anormalmente grande (site comprometido, MITM, resposta inesperada)
- * poderia, em tese, deixar esse parsing mais lento que o necessário. Cortar
- * o tamanho aqui, antes de qualquer parsing, elimina esse risco na raiz.
- */
-const MAX_RESPONSE_LENGTH = 200_000; // ~200.000 caracteres (~200 KB) — bem acima de qualquer resposta real
+// As respostas reais têm poucas dezenas de KB. O que passar disso é cortado antes
+// de chegar ao parser.
+const MAX_RESPONSE_LENGTH = 200_000;
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' +
   ' (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
-/** Resultado bruto (não interpretado) de uma requisição à API do 4devs. */
+/** Resposta da API do 4devs, antes de ser interpretada. */
 export interface RawApiResult {
   ok: boolean;
+  /** Status HTTP, ou 0 se a requisição nem chegou a ser respondida. */
   status: number;
-  /** Corpo da resposta como texto (HTML, JSON ou texto simples, dependendo do endpoint). */
+  /** Corpo como texto: HTML, JSON ou texto simples, conforme a ferramenta. */
   body: string;
-  /** Mensagem de erro, presente somente quando `ok` é `false`. */
+  /** Mensagem de erro; só existe quando `ok` é `false`. */
   error: string | null;
 }
 
 export interface RequestOptions {
-  /** Timeout da requisição em milissegundos. Padrão: 15000. */
+  /** Tempo limite da requisição, em ms. Padrão: 15000. Valores que não sejam um número maior que zero usam o padrão. */
   timeout?: number;
+}
+
+function resolveTimeout(timeout: number | undefined): number {
+  return typeof timeout === 'number' && Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_TIMEOUT;
 }
 
 function buildHeaders(referer: string): Record<string, string> {
@@ -54,24 +48,25 @@ function buildHeaders(referer: string): Record<string, string> {
 }
 
 /**
- * Envia uma requisição `POST` ao endpoint de ferramentas do 4devs.
+ * Envia um POST ao endpoint do 4devs.
  *
- * @param referer Slug da página da ferramenta (ex.: `"gerador_de_cpf"`), usado
- *   para montar o header `Referer` exigido pelo servidor.
- * @param payload Campos do formulário a enviar (equivalente ao `FormData` da página).
+ * @param referer Nome da página da ferramenta (por exemplo `"gerador_de_cpf"`).
+ * @param payload Campos do formulário.
  */
 export async function fordevRequest(
   referer: string,
   payload: Record<string, string | number>,
   options: RequestOptions = {},
 ): Promise<RawApiResult> {
+  const timeout = resolveTimeout(options.timeout);
+
   const requestBody = new URLSearchParams();
   for (const [key, value] of Object.entries(payload)) {
     requestBody.append(key, String(value));
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), options.timeout ?? 15000);
+  const timer = setTimeout(() => controller.abort(), timeout);
 
   try {
     const res = await fetch(API_URL, {
@@ -85,12 +80,7 @@ export async function fordevRequest(
     const body = text.length > MAX_RESPONSE_LENGTH ? text.slice(0, MAX_RESPONSE_LENGTH) : text;
 
     if (!res.ok) {
-      return {
-        ok: false,
-        status: res.status,
-        body,
-        error: `Requisição falhou com status HTTP ${res.status}.`,
-      };
+      return { ok: false, status: res.status, body, error: `Requisição falhou com status HTTP ${res.status}.` };
     }
 
     return { ok: true, status: res.status, body, error: null };
@@ -101,9 +91,8 @@ export async function fordevRequest(
       status: 0,
       body: '',
       error: isAbort
-        ? `Requisição excedeu o tempo limite de ${options.timeout ?? 15000}ms.`
-        : `Falha de rede: ${(err as Error).message}. Você pode ter sido bloqueado` +
-          ' pelo servidor (evite usar proxy/VPN) ou o site pode estar fora do ar.',
+        ? `Requisição excedeu o tempo limite de ${timeout}ms.`
+        : `Falha de rede: ${(err as Error).message}. O site pode estar fora do ar ou ter bloqueado a requisição (evite proxy e VPN).`,
     };
   } finally {
     clearTimeout(timer);

@@ -1,10 +1,5 @@
-/**
- * Tabelas de referência (constantes) usadas pelos geradores e validadores.
- *
- * Todos os valores aqui foram conferidos diretamente contra os formulários
- * públicos do 4devs.com.br (dropdowns de banco, bandeira, certidão etc.),
- * garantindo paridade total com o que o site realmente aceita.
- */
+// Tabelas de referência dos geradores e validadores. Os valores seguem o que os
+// formulários do 4devs.com.br aceitam (bancos, bandeiras, tipos de certidão).
 
 /** Código de Unidade Federativa (estado) do Brasil. */
 export type UFCode =
@@ -26,7 +21,7 @@ export function isValidUF(uf: string): uf is UFCode {
   return UF_SET.has(uf.toUpperCase());
 }
 
-/** Lança um erro descritivo caso `uf` não seja um código de UF válido. */
+/** Lança `RangeError` se `uf` não for um código de UF válido. */
 export function assertValidUF(uf: string, { allowEmpty = false }: { allowEmpty?: boolean } = {}): void {
   if (allowEmpty && uf === '') return;
   if (!isValidUF(uf)) {
@@ -36,13 +31,13 @@ export function assertValidUF(uf: string, { allowEmpty = false }: { allowEmpty?:
   }
 }
 
-/** Uma marca de veículo suportada pelo gerador de veículos (tabela FIPE). */
+/** Marca de veículo, com o código da tabela FIPE. */
 export interface VehicleBrand {
   name: string;
   fipeCode: number;
 }
 
-/** Todas as 87 marcas de veículos suportadas pelo gerador de veículos do 4devs. */
+/** As 87 marcas do gerador de veículos do 4devs. */
 export const VEHICLE_BRANDS: readonly VehicleBrand[] = [
   { name: 'Acura', fipeCode: 1 },
   { name: 'Agrale', fipeCode: 2 },
@@ -142,11 +137,7 @@ export function findVehicleBrand(name: string): VehicleBrand | undefined {
   return VEHICLE_BRANDS_BY_NAME.get(name.toLowerCase());
 }
 
-/**
- * Bandeiras aceitas pelo **gerador** de cartão de crédito.
- * O valor de cada entrada é literalmente o que o formulário do 4devs espera
- * no campo `bandeira` (são códigos curtos, diferentes dos usados pelo validador).
- */
+/** Bandeiras do gerador de cartão. O valor é o código que o 4devs espera no campo `bandeira`. */
 export const CREDIT_CARD_GENERATOR_FLAGS = {
   master: 'master',
   visa16: 'visa16',
@@ -162,10 +153,7 @@ export const CREDIT_CARD_GENERATOR_FLAGS = {
 
 export type CreditCardGeneratorFlag = keyof typeof CREDIT_CARD_GENERATOR_FLAGS;
 
-/**
- * Bandeiras aceitas pelo **validador** de cartão de crédito.
- * O site usa o nome completo da bandeira (não os códigos curtos do gerador).
- */
+/** Bandeiras do validador de cartão. Aqui o 4devs usa o nome completo, não o código do gerador. */
 export const CREDIT_CARD_VALIDATOR_FLAGS = {
   mastercard: 'MasterCard',
   visa: 'Visa',
@@ -183,10 +171,7 @@ export const CREDIT_CARD_VALIDATOR_FLAGS = {
 
 export type CreditCardValidatorFlag = keyof typeof CREDIT_CARD_VALIDATOR_FLAGS;
 
-/**
- * Bancos suportados pelo gerador/validador de conta bancária, na mesma
- * ordem do dropdown "Banco" em https://www.4devs.com.br/gerador_conta_bancaria.
- */
+/** Bancos do gerador e do validador de conta, na ordem do formulário do 4devs. */
 export const BANK_ACCOUNT_BANKS = {
   brasil: { code: 2, label: 'Banco do Brasil' },
   bradesco: { code: 121, label: 'Bradesco' },
@@ -197,7 +182,7 @@ export const BANK_ACCOUNT_BANKS = {
 
 export type BankAccountBank = keyof typeof BANK_ACCOUNT_BANKS;
 
-/** Tipos de certidão aceitos pelo gerador/validador de certidões. */
+/** Tipos de certidão do gerador e do validador. */
 export const CERTIFICATE_TYPES = {
   any: 'Indiferente',
   birth: 'nascimento',

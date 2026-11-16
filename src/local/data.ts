@@ -1,12 +1,5 @@
-/**
- * fordev-native/local/data
- * -------------------------
- * Listas de apoio (nomes, ruas, bairros, cidades por UF, termos de empresa)
- * usadas pelos geradores locais em `local/generators.ts`. Pequenas e
- * deliberadamente simples — servem para o modo de contingência funcionar de
- * forma plausível quando o 4devs.com.br está fora do ar, não para substituir
- * a base de dados real do site.
- */
+// Listas usadas pelos geradores locais. São pequenas de propósito: servem para o
+// modo local devolver algo plausível, não para substituir a base do 4devs.
 
 export const FIRST_NAMES_MALE = [
   'João', 'Pedro', 'Lucas', 'Gabriel', 'Matheus', 'Rafael', 'Bruno', 'Felipe',
@@ -43,12 +36,7 @@ export const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export const EYE_HAIR_COLORS = ['Castanho', 'Preto', 'Loiro', 'Ruivo', 'Grisalho'];
 
-/**
- * Uma pequena amostra de cidades por UF — suficiente para o modo de
- * contingência de `generators.city()` devolver algo plausível quando o
- * 4devs está indisponível. Não é (nem pretende ser) a lista completa de
- * municípios, que só o próprio 4devs fornece.
- */
+// Algumas cidades por UF. Não é a lista completa de municípios.
 export const SAMPLE_CITIES_BY_UF: Record<string, string[]> = {
   AC: ['Rio Branco', 'Cruzeiro do Sul', 'Sena Madureira'],
   AL: ['Maceió', 'Arapiraca', 'Palmeira dos Índios'],
@@ -87,8 +75,3 @@ export const COMPANY_ACTIVITIES = [
 ];
 
 export const COMPANY_SUFFIXES = ['LTDA', 'ME', 'EIRELI', 'S.A.'];
-
-// randomItem/randomInt reexportados de `secureRandom.ts` (crypto.randomInt em
-// vez de Math.random()) — mantidos aqui por compatibilidade, já que
-// `local/generators.ts` os importa deste módulo.
-export { randomItem, randomInt } from './secureRandom.js';

@@ -1,31 +1,26 @@
 # Política de Segurança
 
-## Versões Suportadas
+## Versões com suporte
 
-| Versão  | Suporte de Segurança |
-|---------|----------------------|
-| 2.x.x   | ✅ Ativa              |
-| 1.x.x   | ❌ Sem suporte (legado) |
+| Versão | Suporte |
+| --- | --- |
+| 2.x | Sim |
+| 1.x | Não |
 
-Recomendamos sempre usar a versão mais recente da série `2.x` e acima.
+## Reportar uma vulnerabilidade
 
-## Reportar uma Vulnerabilidade
+Não abra uma issue pública. Use um destes canais:
 
-**Não abra uma issue pública** para vulnerabilidades de segurança.
+1. [GitHub Security Advisories](https://github.com/KillovSky/4devs/security/advisories/new) (preferido): na aba Security do repositório, clique em "Report a vulnerability".
+2. Contato direto com o mantenedor: [linktr.ee/killovsky](https://linktr.ee/killovsky).
 
-Reporte vulnerabilidades de forma privada através de um dos canais abaixo:
+Inclua uma descrição do problema, como reproduzir, o impacto que você enxerga, a versão afetada e, se tiver, uma sugestão de correção.
 
-1. **GitHub Security Advisories** (preferido):
-   Acesse a aba [Security](https://github.com/KillovSky/4devs/security/advisories/new)
-   do repositório e clique em *"Report a vulnerability"*.
+## O que merece atenção
 
-2. **Redes Sociais Privadas** (contato direto com o mantenedor):
-   [linktr.ee/killovsky](https://linktr.ee/killovsky)
+O pacote lê respostas de um site de terceiros, então tudo que vem da rede é tratado como não confiável:
 
-### O que incluir no reporte
+- O leitor de HTML (`src/parse.ts`) não usa regex e percorre o texto em tempo linear, e a resposta é cortada em 200 mil caracteres antes dele.
+- Nada do que vem da resposta é usado como caminho de arquivo, comando ou endereço de nova requisição.
 
-- Descrição clara da vulnerabilidade
-- Passos para reproduzir (proof-of-concept, se possível)
-- Impacto potencial estimado
-- Versão afetada
-- Sugestão de correção (opcional, mas bem-vinda)
+Se você achar um jeito de deixar o leitor lento, ou de fazer dados da resposta chegarem a `fs`, `fetch` ou a um comando, reporte em privado pelos canais acima.

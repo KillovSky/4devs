@@ -1,20 +1,11 @@
-/**
- * fordev-native/local/checksums
- * ------------------------------
- * Algoritmos de dígito verificador implementados localmente, para os
- * documentos que têm uma regra de cálculo pública e nacionalmente padronizada
- * (CPF, CNPJ, PIS/PASEP, RENAVAM, CNH e o algoritmo de Luhn para cartão de
- * crédito). Usados tanto para gerar quanto para validar esses documentos
- * sem depender do 4devs.com.br — como alternativa local caso o site esteja
- * fora do ar, e como base dos comandos "offline" do módulo.
- *
- * Documentos sem uma regra única e nacional (RG, título de eleitor,
- * inscrição estadual, certidão, conta bancária — cada um varia por estado
- * ou por instituição) não entram aqui; eles são tratados em `plausible.ts`
- * com verificações de formato, não de dígito verificador.
- */
+// Algoritmos de dígito verificador dos documentos que têm uma regra nacional
+// pública: CPF, CNPJ, PIS/PASEP, RENAVAM, CNH e Luhn (cartão). Servem para gerar e
+// para validar sem depender do 4devs.com.br.
+//
+// RG, título de eleitor, inscrição estadual, certidão e conta bancária variam por
+// estado ou instituição e ficam em `plausible.ts`, que só confere o formato.
 
-import { randomDigits } from './secureRandom.js';
+import { randomDigits, randomInt } from '../random.js';
 
 function toDigits(value: string): number[] {
   return value.replace(/\D/g, '').split('').map(Number);
@@ -24,9 +15,7 @@ function allSameDigit(digits: number[]): boolean {
   return digits.every((d) => d === digits[0]);
 }
 
-// ---------------------------------------------------------------------------
 // CPF
-// ---------------------------------------------------------------------------
 
 function cpfDigit(base: number[]): number {
   const start = base.length + 1;
@@ -54,9 +43,17 @@ export function formatCpf(digits: number[]): string {
   return `${s.slice(0, 3)}.${s.slice(3, 6)}.${s.slice(6, 9)}-${s.slice(9, 11)}`;
 }
 
-// ---------------------------------------------------------------------------
 // CNPJ
-// ---------------------------------------------------------------------------
+
+// A partir de julho de 2026 o CNPJ pode ter letras nas 12 primeiras posições. O
+// cálculo é o mesmo de sempre, com o valor de cada caractere sendo o código ASCII
+// menos 48 ('0' a '9' valem 0 a 9, 'A' a 'Z' valem 17 a 42). Os dois dígitos
+// verificadores continuam numéricos.
+const CNPJ_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+function cnpjValues(text: string): number[] {
+  return Array.from(text, (ch) => ch.charCodeAt(0) - 48);
+}
 
 function cnpjDigit(base: number[]): number {
   const weights = base.length === 12
@@ -75,20 +72,33 @@ export function generateCnpjDigits(): number[] {
   return [...base, d1, d2];
 }
 
-export function isValidCnpj(code: string): boolean {
-  const digits = toDigits(code);
-  if (digits.length !== 14 || allSameDigit(digits)) return false;
-  return cnpjDigit(digits.slice(0, 12)) === digits[12] && cnpjDigit(digits.slice(0, 13)) === digits[13];
+/** Gera um CNPJ alfanumérico (14 caracteres, sem pontuação) com os dois dígitos verificadores corretos. */
+export function generateAlphanumericCnpj(): string {
+  const root = Array.from({ length: 8 }, () => CNPJ_ALPHABET[randomInt(0, CNPJ_ALPHABET.length - 1)]).join('');
+  const base = `${root}0001`;
+  const values = cnpjValues(base);
+  const d1 = cnpjDigit(values);
+  const d2 = cnpjDigit([...values, d1]);
+  return `${base}${d1}${d2}`;
 }
 
-export function formatCnpj(digits: number[]): string {
-  const s = digits.join('');
+/** Confere um CNPJ numérico ou alfanumérico. Pontos, barra, traço e espaços são ignorados. */
+export function isValidCnpj(code: string): boolean {
+  const clean = code.replace(/[.\-/\s]/g, '').toUpperCase();
+  if (!/^[0-9A-Z]{12}[0-9]{2}$/.test(clean)) return false;
+
+  const values = cnpjValues(clean);
+  if (allSameDigit(values)) return false;
+  return cnpjDigit(values.slice(0, 12)) === values[12] && cnpjDigit(values.slice(0, 13)) === values[13];
+}
+
+/** Aplica a máscara `00.000.000/0000-00` a 14 caracteres, vindos de um array de dígitos ou de um texto. */
+export function formatCnpj(chars: number[] | string): string {
+  const s = typeof chars === 'string' ? chars : chars.join('');
   return `${s.slice(0, 2)}.${s.slice(2, 5)}.${s.slice(5, 8)}/${s.slice(8, 12)}-${s.slice(12, 14)}`;
 }
 
-// ---------------------------------------------------------------------------
 // PIS/PASEP
-// ---------------------------------------------------------------------------
 
 const PIS_WEIGHTS = [3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
 
@@ -115,9 +125,7 @@ export function formatPisPasep(digits: number[]): string {
   return `${s.slice(0, 3)}.${s.slice(3, 8)}.${s.slice(8, 10)}-${s.slice(10, 11)}`;
 }
 
-// ---------------------------------------------------------------------------
 // RENAVAM
-// ---------------------------------------------------------------------------
 
 function renavamDigit(base10: number[]): number {
   const reversed = [...base10].reverse();
@@ -139,9 +147,7 @@ export function isValidRenavam(code: string): boolean {
   return renavamDigit(padded.slice(0, 10)) === padded[10];
 }
 
-// ---------------------------------------------------------------------------
 // CNH
-// ---------------------------------------------------------------------------
 
 function cnhDigits(base: number[]): [number, number] {
   let dsc = 0;
@@ -160,7 +166,7 @@ function cnhDigits(base: number[]): [number, number] {
   let dv2 = v % 11;
   dv2 = dv2 >= 10 ? 0 : dv2 - dsc;
   if (dv2 < 0) dv2 += 11;
-  if (dv2 >= 10) dv2 = 0; // garante um único dígito mesmo no caso-limite do ajuste acima
+  if (dv2 >= 10) dv2 = 0;
 
   return [dv1, dv2];
 }
@@ -177,10 +183,7 @@ export function isValidCnh(code: string): boolean {
   return dv1 === digits[9] && dv2 === digits[10];
 }
 
-// ---------------------------------------------------------------------------
-// Cartão de crédito (algoritmo de Luhn — padrão internacional, não é
-// específico do Brasil, mas é o que garante que um número de cartão "fecha")
-// ---------------------------------------------------------------------------
+// Cartão de crédito (Luhn, padrão internacional)
 
 function luhnDigit(base: number[]): number {
   const reversed = [...base].reverse();
@@ -196,8 +199,10 @@ function luhnDigit(base: number[]): number {
   return (10 - (sum % 10)) % 10;
 }
 
-export function generateCardDigits(length = 16): number[] {
-  const base = randomDigits(length - 1);
+/** Número de cartão de `length` dígitos que fecha no Luhn, começando por `prefix` (só dígitos), se houver. */
+export function generateCardDigits(length = 16, prefix = ''): number[] {
+  const start = Array.from(prefix.slice(0, length - 1), Number);
+  const base = [...start, ...randomDigits(length - 1 - start.length)];
   return [...base, luhnDigit(base)];
 }
 

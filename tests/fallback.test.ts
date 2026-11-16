@@ -30,7 +30,7 @@ function restoreFetch(): void {
   globalThis.fetch = originalFetch;
 }
 
-// -- 4devs indisponível (erro de rede) -------------------------------------
+// 4devs indisponível (erro de rede)
 
 test('fallback: erro de rede faz generators.cpf() cair para geração local', async () => {
   mockFetchReject();
@@ -59,7 +59,7 @@ test('fallback: erro de rede faz validators.cpf() validar localmente (algoritmo 
   }
 });
 
-// -- 4devs respondendo com erro HTTP (ex.: bloqueio, 403/500) --------------
+// 4devs respondendo com erro HTTP (bloqueio, 403, 500)
 
 test('fallback: status HTTP 403 faz generators.people() cair para geração local', async () => {
   mockFetchStatus(403, 'Forbidden');
@@ -85,7 +85,7 @@ test('fallback: status HTTP 500 faz generators.bankAccount() cair para geração
   }
 });
 
-// -- resposta "bem-sucedida" mas em formato inesperado ----------------------
+// resposta com status 200, mas em formato inesperado
 
 test('fallback: corpo em formato inesperado (JSON inválido) faz generators.people() cair para local', async () => {
   mockFetchOk('<html>isto não é o JSON esperado</html>');
@@ -99,7 +99,7 @@ test('fallback: corpo em formato inesperado (JSON inválido) faz generators.peop
   }
 });
 
-// -- 4devs disponível: o caminho de rede é usado normalmente ---------------
+// 4devs disponível: a resposta da rede é usada
 
 test('rede OK: generators.cpf() usa a resposta do 4devs quando ela chega normalmente', async () => {
   mockFetchOk('123.456.789-09');
@@ -136,6 +136,48 @@ test('rede OK: generators.bankAccount() interpreta o fragmento HTML do 4devs (co
     const result = await generators.bankAccount({ bank: 'brasil' });
     assert.equal(result.source, 'network');
     assert.equal(result.data?.['Banco:'], '001 - Banco do Brasil');
+  } finally {
+    restoreFetch();
+  }
+});
+
+// parâmetros e opções
+
+test('timeout inválido (NaN, 0, negativo) usa o padrão e não aborta a requisição na hora', async () => {
+  mockFetchOk('123.456.789-09');
+  try {
+    for (const timeout of [Number.NaN, 0, -5]) {
+      const result = await generators.cpf({ timeout });
+      assert.equal(result.source, 'network', `timeout ${timeout}`);
+    }
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('generators.cnpj({ alphanumeric: true }) gera localmente, sem requisição', async () => {
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    throw new Error('não deveria ser chamado');
+  }) as typeof fetch;
+  try {
+    const result = await generators.cnpj({ alphanumeric: true, formatting: false });
+    assert.equal(calls, 0);
+    assert.equal(result.source, 'local');
+    assert.equal(result.warning, null);
+    assert.equal(local.validators.cnpj(result.data as string).isValid, true);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('resposta HTML com entidade inválida não derruba a leitura', async () => {
+  mockFetchOk('<div class="output-subtitle">Banco:</div><div class="output-txt">A &#99999999999; B</div>');
+  try {
+    const result = await generators.bankAccount({ bank: 'brasil' });
+    assert.equal(result.source, 'network');
+    assert.equal(result.data?.['Banco:'], 'A &#99999999999; B');
   } finally {
     restoreFetch();
   }

@@ -1,19 +1,9 @@
-/**
- * fordev-native/local
- * ---------------------
- * Camada 100% offline do módulo: nenhuma função aqui faz requisição de
- * rede. É o que alimenta o modo de contingência das funções principais em
- * `generators.ts`/`validators.ts` quando o 4devs.com.br está indisponível,
- * e também pode ser usada diretamente por quem quiser gerar/validar dados
- * garantidamente sem depender de rede.
- *
- * ```ts
- * import { local } from '@killovsky/4devs';
- *
- * const cpf = local.generators.cpf();           // síncrono, sem rede
- * const check = local.validators.cpf('123.456.789-09');
- * ```
- */
+// Geração e validação sem rede. É o que as funções principais usam quando o
+// 4devs.com.br não responde, e também pode ser chamado direto:
+//
+//   import { local } from '@killovsky/4devs';
+//   local.generators.cpf();
+//   local.validators.cpf('123.456.789-09');
 
 export { localGenerators as generators } from './generators.js';
 export { localValidators as validators } from './validators.js';

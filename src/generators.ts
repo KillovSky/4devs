@@ -1,15 +1,8 @@
-/**
- * fordev-native/generators
- * ------------------------
- * Geradores de dados fictícios brasileiros via 4devs.com.br.
- *
- * Todas as funções devolvem um `FourDevsResult<T>` (veja `types.ts`) e nunca
- * lançam exceção por falha de rede — se a requisição ao 4devs falhar por
- * qualquer motivo, a função cai automaticamente para geração local
- * (`source: "local"` no resultado; veja `local/generators.ts`). Só lançam
- * exceção por parâmetros de entrada inválidos (ex.: UF inexistente),
- * validados de forma síncrona antes de qualquer requisição.
- */
+// Geradores de dados brasileiros fictícios via 4devs.com.br.
+//
+// Entradas inválidas (UF que não existe, por exemplo) lançam erro antes de qualquer
+// requisição. Falhas de rede não lançam: a função gera o dado localmente e devolve
+// `source: 'local'` (veja local/generators.ts).
 
 import {
   assertValidUF,
@@ -20,6 +13,7 @@ import {
   UF_CODES,
   VEHICLE_BRANDS,
 } from './consts.js';
+import type { UFCode } from './consts.js';
 import { fordevRequest } from './http.js';
 import { localGenerators } from './local/generators.js';
 import {
@@ -27,13 +21,14 @@ import {
   extractOptionTexts,
   extractStrongInputPairs,
 } from './parse.js';
-import { randomChoice, sampleWithoutReplacement } from './random.js';
+import { randomItem, sampleWithoutReplacement } from './random.js';
 import { buildLocalResult, buildResult } from './result.js';
 import type {
   BankAccountInfo,
   BankAccountOptions,
   CertificateOptions,
   CityOptions,
+  CnpjOptions,
   CompanyInfo,
   CompanyOptions,
   CpfOptions,
@@ -63,9 +58,7 @@ function scoreFlag(formatting: boolean | undefined): 'S' | 'N' {
 }
 
 /**
- * Gera dados de uma ou mais pessoas fictícias (nome, CPF, RG, endereço,
- * contato, dados físicos etc). Se o 4devs estiver indisponível, os dados
- * são compostos localmente (veja `result.source`).
+ * Gera uma ou mais pessoas fictícias (nome, CPF, RG, endereço, contato, dados físicos).
  *
  * @example
  * ```ts
@@ -105,7 +98,7 @@ export async function people(options: PeopleOptions = {}): Promise<FourDevsResul
   );
 }
 
-/** Gera o código de um CPF aleatório (válido perante o algoritmo oficial). */
+/** Gera um CPF com dígitos verificadores corretos. */
 export async function cpf(options: CpfOptions = {}): Promise<FourDevsResult<string>> {
   const uf = (options.uf ?? '').toUpperCase();
   assertValidUF(uf, { allowEmpty: true });
@@ -119,8 +112,13 @@ export async function cpf(options: CpfOptions = {}): Promise<FourDevsResult<stri
   return buildResult(raw, (body) => body.trim(), () => localGenerators.cpf(options));
 }
 
-/** Gera o código de um CNPJ aleatório (válido perante o algoritmo oficial). */
-export async function cnpj(options: FormattingOptions = {}): Promise<FourDevsResult<string>> {
+/**
+ * Gera um CNPJ com dígitos verificadores corretos. Com `alphanumeric: true` o CNPJ é
+ * alfanumérico e gerado localmente, sem requisição.
+ */
+export async function cnpj(options: CnpjOptions = {}): Promise<FourDevsResult<string>> {
+  if (options.alphanumeric) return buildLocalResult(localGenerators.cnpj(options));
+
   const raw = await fordevRequest(
     'gerador_de_cnpj',
     { acao: 'gerar_cnpj', pontuacao: scoreFlag(options.formatting) },
@@ -130,7 +128,7 @@ export async function cnpj(options: FormattingOptions = {}): Promise<FourDevsRes
   return buildResult(raw, (body) => body.trim(), () => localGenerators.cnpj(options));
 }
 
-/** Gera o código de um RG aleatório (padrão de emissão SSP-SP). */
+/** Gera um RG no padrão SSP-SP. */
 export async function rg(options: FormattingOptions = {}): Promise<FourDevsResult<string>> {
   const raw = await fordevRequest(
     'gerador_de_rg',
@@ -141,13 +139,13 @@ export async function rg(options: FormattingOptions = {}): Promise<FourDevsResul
   return buildResult(raw, (body) => body.trim(), () => localGenerators.rg(options));
 }
 
-/** Gera o número de uma CNH (Carteira Nacional de Habilitação) aleatória. */
+/** Gera um número de CNH. */
 export async function cnh(options: RequestTimeoutOption = {}): Promise<FourDevsResult<string>> {
   const raw = await fordevRequest('gerador_de_cnh', { acao: 'gerar_cnh' }, options);
   return buildResult(raw, (body) => body.trim(), () => localGenerators.cnh());
 }
 
-/** Gera o código de um PIS/PASEP aleatório. */
+/** Gera um PIS/PASEP. */
 export async function pisPasep(options: FormattingOptions = {}): Promise<FourDevsResult<string>> {
   const raw = await fordevRequest(
     'gerador_de_pis_pasep',
@@ -158,13 +156,13 @@ export async function pisPasep(options: FormattingOptions = {}): Promise<FourDev
   return buildResult(raw, (body) => body.trim(), () => localGenerators.pisPasep(options));
 }
 
-/** Gera o código de um RENAVAM (Registro Nacional de Veículos Automotores) aleatório. */
+/** Gera um RENAVAM. */
 export async function renavam(options: RequestTimeoutOption = {}): Promise<FourDevsResult<string>> {
   const raw = await fordevRequest('gerador_de_renavam', { acao: 'gerar_renavam' }, options);
   return buildResult(raw, (body) => body.trim(), () => localGenerators.renavam());
 }
 
-/** Gera o número de um título de eleitor aleatório para o estado informado. */
+/** Gera um título de eleitor do estado informado. */
 export async function voterTitle(options: VoterTitleOptions): Promise<FourDevsResult<string>> {
   const uf = options.uf.toUpperCase();
   assertValidUF(uf);
@@ -175,10 +173,10 @@ export async function voterTitle(options: VoterTitleOptions): Promise<FourDevsRe
     options,
   );
 
-  return buildResult(raw, (body) => body.trim(), () => localGenerators.voterTitle({ uf: uf as never }));
+  return buildResult(raw, (body) => body.trim(), () => localGenerators.voterTitle({ uf: uf as UFCode }));
 }
 
-/** Gera o número de uma inscrição estadual aleatória. */
+/** Gera uma inscrição estadual. */
 export async function stateRegistration(
   options: StateRegistrationOptions = {},
 ): Promise<FourDevsResult<string>> {
@@ -194,7 +192,7 @@ export async function stateRegistration(
   return buildResult(raw, (body) => body.trim(), () => localGenerators.stateRegistration(options));
 }
 
-/** Gera o número de uma certidão (nascimento, casamento, casamento religioso ou óbito) aleatória. */
+/** Gera a matrícula de uma certidão (nascimento, casamento, casamento religioso ou óbito). */
 export async function certificate(options: CertificateOptions = {}): Promise<FourDevsResult<string>> {
   const type = options.type ?? 'any';
   const tipoCertidao = CERTIFICATE_TYPES[type];
@@ -213,7 +211,7 @@ export async function certificate(options: CertificateOptions = {}): Promise<Fou
   return buildResult(raw, (body) => body.trim(), () => localGenerators.certificate(options));
 }
 
-/** Gera dados de uma conta bancária aleatória (banco, agência, conta e dígito verificador). */
+/** Gera os dados de uma conta bancária. */
 export async function bankAccount(options: BankAccountOptions = {}): Promise<FourDevsResult<BankAccountInfo>> {
   const bankKey = options.bank ?? 'random';
   const bankCode = bankKey === 'random' ? '' : BANK_ACCOUNT_BANKS[bankKey]?.code;
@@ -239,9 +237,9 @@ export async function bankAccount(options: BankAccountOptions = {}): Promise<Fou
   );
 }
 
-/** Gera dados de um cartão de crédito aleatório (número, validade e CVV) para testes. */
+/** Gera um cartão de crédito de teste (número, validade e CVV). */
 export async function creditCard(options: CreditCardOptions = {}): Promise<FourDevsResult<CreditCardInfo>> {
-  const flagKey = options.flag ?? randomChoice(Object.keys(CREDIT_CARD_GENERATOR_FLAGS) as Array<
+  const flagKey = options.flag ?? randomItem(Object.keys(CREDIT_CARD_GENERATOR_FLAGS) as Array<
     keyof typeof CREDIT_CARD_GENERATOR_FLAGS
   >);
   const flagValue = CREDIT_CARD_GENERATOR_FLAGS[flagKey];
@@ -264,7 +262,7 @@ export async function creditCard(options: CreditCardOptions = {}): Promise<FourD
   );
 }
 
-/** Gera dados de um veículo aleatório (marca, modelo, placa, chassi, Renavam etc). */
+/** Gera os dados de um veículo (marca, modelo, placa, chassi, Renavam). */
 export async function vehicle(options: VehicleOptions = {}): Promise<FourDevsResult<VehicleInfo>> {
   let fipeCode = '';
   if (options.brand) {
@@ -292,14 +290,14 @@ export async function vehicle(options: VehicleOptions = {}): Promise<FourDevsRes
   return buildResult(raw, (body) => extractStrongInputPairs(body), () => localGenerators.vehicle(options));
 }
 
-/** Sorteia (localmente, sem requisição de rede) o nome de uma ou mais marcas de veículo suportadas. */
+/** Sorteia marcas de veículo. Não faz requisição. */
 export function vehicleBrand(options: VehicleBrandOptions = {}): FourDevsResult<string[]> {
   const n = clamp(options.n ?? 1, 1, VEHICLE_BRANDS.length);
   const names = sampleWithoutReplacement(VEHICLE_BRANDS, n).map((b) => b.name);
   return buildLocalResult(names);
 }
 
-/** Gera o texto de uma placa de veículo aleatória. */
+/** Gera uma placa. */
 export async function vehiclePlate(options: VehiclePlateOptions = {}): Promise<FourDevsResult<string>> {
   const uf = (options.uf ?? '').toUpperCase();
   assertValidUF(uf, { allowEmpty: true });
@@ -313,7 +311,7 @@ export async function vehiclePlate(options: VehiclePlateOptions = {}): Promise<F
   return buildResult(raw, (body) => body.trim(), () => localGenerators.vehiclePlate(options));
 }
 
-/** Gera dados de uma empresa fictícia (razão social, CNPJ, inscrição estadual, endereço etc). */
+/** Gera os dados de uma empresa fictícia. */
 export async function company(options: CompanyOptions = {}): Promise<FourDevsResult<CompanyInfo>> {
   const uf = (options.uf ?? 'SP').toUpperCase();
   assertValidUF(uf);
@@ -329,7 +327,7 @@ export async function company(options: CompanyOptions = {}): Promise<FourDevsRes
   return buildResult(raw, (body) => extractStrongInputPairs(body), () => localGenerators.company(options));
 }
 
-/** Lista os nomes de todas as cidades do estado informado. */
+/** Lista as cidades do estado. */
 export async function city(options: CityOptions = {}): Promise<FourDevsResult<string[]>> {
   const uf = (options.uf ?? 'SP').toUpperCase();
   assertValidUF(uf);
@@ -343,7 +341,7 @@ export async function city(options: CityOptions = {}): Promise<FourDevsResult<st
   return buildResult(raw, (body) => extractOptionTexts(body), () => localGenerators.city(options));
 }
 
-/** Sorteia (localmente, sem requisição de rede) um ou mais códigos de UF distintos. */
+/** Sorteia códigos de UF. Não faz requisição. */
 export function uf(options: UfOptions = {}): FourDevsResult<string[]> {
   const n = clamp(options.n ?? 1, 1, UF_CODES.length);
   return buildLocalResult(sampleWithoutReplacement(UF_CODES, n));

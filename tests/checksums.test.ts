@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   generateCpfDigits, isValidCpf, formatCpf,
-  generateCnpjDigits, isValidCnpj, formatCnpj,
+  generateCnpjDigits, generateAlphanumericCnpj, isValidCnpj, formatCnpj,
   generatePisDigits, isValidPisPasep, formatPisPasep,
   generateRenavamDigits, isValidRenavam,
   generateCnhDigits, isValidCnh,
@@ -82,4 +82,27 @@ test('Cartão de crédito (Luhn): round-trip para tamanhos comuns', () => {
   }
   assert.equal(isValidLuhn('4111111111111112'), false); // último dígito do número de teste clássico alterado
   assert.equal(isValidLuhn('4111111111111111'), true); // número de teste clássico (Luhn-válido)
+});
+
+test('CNPJ alfanumérico: o exemplo da Receita Federal valida', () => {
+  assert.equal(isValidCnpj('12.ABC.345/01DE-35'), true);
+  assert.equal(isValidCnpj('12abc34501de35'), true);
+  assert.equal(isValidCnpj('12.ABC.345/01DE-36'), false);
+  assert.equal(isValidCnpj('12.ABC.345/01DE-3A'), false);
+});
+
+test('CNPJ alfanumérico: round-trip e formatação', () => {
+  for (let i = 0; i < TRIALS; i += 1) {
+    const cnpj = generateAlphanumericCnpj();
+    assert.match(cnpj, /^[0-9A-Z]{12}\d{2}$/);
+    assert.equal(isValidCnpj(cnpj), true, cnpj);
+    assert.equal(isValidCnpj(formatCnpj(cnpj)), true);
+  }
+  assert.match(formatCnpj('12ABC34501DE35'), /^12\.ABC\.345\/01DE-35$/);
+});
+
+test('CNPJ: caracteres que não são pontuação invalidam', () => {
+  assert.equal(isValidCnpj('CNPJ 11.222.333/0001-81'), false);
+  assert.equal(isValidCnpj(''), false);
+  assert.equal(isValidCnpj('11111111111111'), false);
 });

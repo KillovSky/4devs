@@ -54,3 +54,36 @@ test('local.validators.rg/voterTitle/certificate/stateRegistration/bankAccount: 
   assert.equal(local.validators.bankAccount({ bank: 'brasil', agency: '1234', account: '56789-0' }).isValid, true);
   assert.equal(local.validators.bankAccount({ bank: 'brasil', agency: '', account: '' }).isValid, false);
 });
+
+test('local.generators.creditCard: número tem o prefixo e o tamanho da bandeira e fecha no Luhn', () => {
+  const expected: Record<string, { prefix: RegExp; length: number }> = {
+    visa16: { prefix: /^4/, length: 16 },
+    master: { prefix: /^5[1-5]/, length: 16 },
+    amex: { prefix: /^3[47]/, length: 15 },
+    diners: { prefix: /^3[68]/, length: 14 },
+    discover: { prefix: /^6011/, length: 16 },
+    aura: { prefix: /^50/, length: 16 },
+  };
+
+  for (const [flag, { prefix, length }] of Object.entries(expected)) {
+    for (let i = 0; i < 50; i += 1) {
+      const card = local.generators.creditCard({ flag: flag as never, formatting: false });
+      assert.match(card['Número'], prefix, flag);
+      assert.equal(card['Número'].length, length, flag);
+      assert.equal(local.validators.creditCard({ flag: 'visa', code: card['Número'] }).isValid, true, flag);
+    }
+  }
+  assert.equal(local.generators.creditCard({ flag: 'amex' }).CVV.length, 4);
+});
+
+test('local.generators: banco, bandeira e tipo de certidão inexistentes lançam RangeError', () => {
+  assert.throws(() => local.generators.bankAccount({ bank: 'nubank' as never }), RangeError);
+  assert.throws(() => local.generators.creditCard({ flag: 'elo' as never }), RangeError);
+  assert.throws(() => local.generators.certificate({ type: 'outro' as never }), RangeError);
+});
+
+test('local.generators.cnpj: alphanumeric gera CNPJ com letras que valida', () => {
+  const cnpj = local.generators.cnpj({ alphanumeric: true, formatting: false });
+  assert.match(cnpj, /^[0-9A-Z]{12}\d{2}$/);
+  assert.equal(local.validators.cnpj(cnpj).isValid, true);
+});

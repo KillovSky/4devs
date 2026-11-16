@@ -1,117 +1,128 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 import { generators } from './generators.js';
 import { validators } from './validators.js';
 import { local } from './local/index.js';
 import { buildLocalResult } from './result.js';
-import type { CertificateType, CreditCardGeneratorFlag, CreditCardValidatorFlag, BankAccountBank } from './consts.js';
+import type {
+  BankAccountBank,
+  CertificateType,
+  CreditCardGeneratorFlag,
+  CreditCardValidatorFlag,
+  UFCode,
+} from './consts.js';
+import type { Sex } from './types.js';
 
-const HELP = `4devs — geradores e validadores de dados brasileiros fictícios, via 4devs.com.br
+const HELP = `4devs: geradores e validadores de dados brasileiros fictícios, via 4devs.com.br
 
 Uso:
-  4devs <comando> [argumentos] [opções]
-  4devs validate <comando> [argumentos] [opções]
+  4devs <comando> [opções]
+  4devs validate <comando> <valor> [opções]
 
 Comandos de geração:
-  people                Gera uma ou mais pessoas fictícias
-  cpf                    Gera um CPF
-  cnpj                    Gera um CNPJ
-  rg                      Gera um RG
-  cnh                     Gera uma CNH
-  pis-pasep               Gera um PIS/PASEP
-  renavam                 Gera um RENAVAM
-  voter-title              Gera um título de eleitor         (requer --uf)
-  state-registration       Gera uma inscrição estadual
-  certificate              Gera uma certidão
-  bank-account             Gera dados de conta bancária
-  credit-card              Gera dados de cartão de crédito
-  vehicle                  Gera dados de veículo
-  vehicle-brand            Sorteia marca(s) de veículo (local, sem rede)
-  vehicle-plate            Gera uma placa de veículo
-  company                  Gera dados de empresa
-  city                     Lista cidades de um estado
-  uf                       Sorteia código(s) de UF (local, sem rede)
+  people                Pessoa fictícia
+  cpf                   CPF
+  cnpj                  CNPJ (--alphanumeric gera o formato novo, com letras)
+  rg                    RG
+  cnh                   CNH
+  pis-pasep             PIS/PASEP
+  renavam               RENAVAM
+  voter-title           Título de eleitor (exige --uf)
+  state-registration    Inscrição estadual
+  certificate           Certidão
+  bank-account          Conta bancária
+  credit-card           Cartão de crédito
+  vehicle               Veículo
+  vehicle-brand         Sorteia marcas de veículo (local, sem rede)
+  vehicle-plate         Placa
+  company               Empresa
+  city                  Cidades de um estado
+  uf                    Sorteia siglas de UF (local, sem rede)
 
-Comandos de validação (use: 4devs validate <comando> <valor> [opções]):
-  cpf, cnpj, rg, cnh, pis-pasep, renavam, voter-title, certificate  <codigo>
-  state-registration <codigo> --uf SP
+Comandos de validação:
+  cpf, cnpj, rg, cnh, pis-pasep, renavam, voter-title, certificate  <código>
+  state-registration <código> --uf SP
   bank-account --bank brasil --agency 1234 --account 56789-0
-  credit-card <numero> --flag visa
+  credit-card <número> --flag visa
 
 Opções gerais:
-  --json               Imprime o envelope de resposta completo (FourDevsResult)
-  --timeout <ms>        Timeout da requisição, em milissegundos (padrão: 15000)
-  --offline              Não tenta o 4devs.com.br; usa direto o modo local
-                          (mesmo motor que entra em ação sozinho se o site cair)
-  -h, --help            Mostra esta mensagem
+  --json                Imprime a resposta completa em vez de só o dado
+  --timeout <ms>        Tempo limite da requisição (padrão: 15000)
+  --offline             Não consulta o 4devs.com.br; usa o modo local
+  -v, --version         Mostra a versão
+  -h, --help            Mostra esta ajuda
 
-Opções específicas por comando (exemplos):
-  --n <numero>          people, vehicle-brand, uf
-  --sex M|F|random       people
-  --age <numero>         people, company
-  --uf <UF>               vários comandos
-  --no-formatting        desativa pontuação (cpf, cnpj, rg, ...)
-  --type <tipo>           certificate (any|birth|wedding|religiousWedding|death)
-  --bank <banco>          bank-account (random|brasil|bradesco|citibank|itau|santander)
-  --flag <bandeira>       credit-card
-  --brand <nome>          vehicle (ex.: Fiat, Toyota, Honda)
+Opções por comando:
+  --n <número>          people, vehicle-brand, uf
+  --sex M|F|random      people
+  --age <número>        people, company
+  --uf <UF>             vários comandos
+  --no-formatting       sem pontuação (cpf, cnpj, rg, ...)
+  --alphanumeric        cnpj
+  --type <tipo>         certificate (any, birth, wedding, religiousWedding, death)
+  --bank <banco>        bank-account (random, brasil, bradesco, citibank, itau, santander)
+  --flag <bandeira>     credit-card
+  --brand <marca>       vehicle (por exemplo Fiat, Toyota, Honda)
 
 Exemplos:
   4devs people --n 3 --uf SP
   4devs cpf --no-formatting
+  4devs cnpj --alphanumeric
   4devs bank-account --bank itau
-  4devs cnpj --offline
   4devs validate cpf 123.456.789-09
   4devs validate credit-card 5555555555554444 --flag mastercard
 
-Nota: se o 4devs.com.br estiver fora do ar, os comandos de geração e
-validação caem sozinhos para o modo local (veja "source" no --json). Use
---offline para pular a tentativa de rede e ir direto ao modo local.
+Se o 4devs.com.br não responder, os comandos usam o modo local sozinhos; o campo
+"source" de --json mostra qual foi usado.
 `;
+
+type Flags = Record<string, string | boolean>;
 
 interface ParsedArgs {
   command?: string;
   sub?: string;
   positional: string[];
-  flags: Record<string, string | boolean>;
+  flags: Flags;
 }
+
+// Flags que nunca recebem valor. Sem esta lista, "4devs --offline cpf" leria "cpf"
+// como valor de --offline.
+const BOOLEAN_FLAGS = new Set(['json', 'offline', 'help', 'version', 'alphanumeric']);
 
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = [];
-  const flags: Record<string, string | boolean> = {};
+  const flags: Flags = {};
   let command: string | undefined;
   let sub: string | undefined;
 
-  let i = 0;
-  while (i < argv.length) {
+  for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
-    if (token.startsWith('--')) {
-      const key = token.slice(2);
-      const next = argv[i + 1];
-      if (key.startsWith('no-')) {
-        flags[key.slice(3)] = false;
-        i += 1;
-      } else if (next !== undefined && !next.startsWith('--')) {
-        flags[key] = next;
-        i += 2;
-      } else {
-        flags[key] = true;
-        i += 1;
-      }
-      continue;
-    }
+
     if (token === '-h') {
       flags.help = true;
-      i += 1;
-      continue;
-    }
-    if (!command) {
+    } else if (token === '-v') {
+      flags.version = true;
+    } else if (token.startsWith('--')) {
+      const eq = token.indexOf('=');
+      const key = eq === -1 ? token.slice(2) : token.slice(2, eq);
+
+      if (eq !== -1) {
+        flags[key] = token.slice(eq + 1);
+      } else if (key.startsWith('no-')) {
+        flags[key.slice(3)] = false;
+      } else if (!BOOLEAN_FLAGS.has(key) && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) {
+        flags[key] = argv[i + 1];
+        i += 1;
+      } else {
+        flags[key] = true;
+      }
+    } else if (!command) {
       command = token;
     } else if (command === 'validate' && !sub) {
       sub = token;
     } else {
       positional.push(token);
     }
-    i += 1;
   }
 
   return { command, sub, positional, flags };
@@ -129,8 +140,130 @@ function toStr(v: string | boolean | undefined): string | undefined {
 
 function toBool(v: string | boolean | undefined, fallback: boolean): boolean {
   if (v === undefined) return fallback;
-  if (typeof v === 'boolean') return v;
-  return v !== 'false';
+  return typeof v === 'boolean' ? v : v !== 'false';
+}
+
+function requireFlag(flags: Flags, name: string, command: string): string {
+  const value = toStr(flags[name]);
+  if (!value) throw new Error(`${command} exige --${name}.`);
+  return value;
+}
+
+type Options = Record<string, unknown>;
+type AnyFn = (options: Options) => unknown;
+
+// Cada comando de geração aponta para uma função de `generators` e diz como montar
+// as opções a partir das flags.
+const GENERATOR_COMMANDS: Record<string, { fn: keyof typeof generators; options: (f: Flags, formatting: boolean) => Options }> = {
+  people: {
+    fn: 'people',
+    options: (f, formatting) => ({
+      n: toNumber(f.n),
+      sex: (toStr(f.sex) as Sex | undefined) ?? 'random',
+      age: toNumber(f.age),
+      uf: toStr(f.uf) as UFCode | undefined,
+      formatting,
+    }),
+  },
+  cpf: { fn: 'cpf', options: (f, formatting) => ({ uf: toStr(f.uf), formatting }) },
+  cnpj: { fn: 'cnpj', options: (f, formatting) => ({ formatting, alphanumeric: Boolean(f.alphanumeric) }) },
+  rg: { fn: 'rg', options: (_f, formatting) => ({ formatting }) },
+  cnh: { fn: 'cnh', options: () => ({}) },
+  'pis-pasep': { fn: 'pisPasep', options: (_f, formatting) => ({ formatting }) },
+  renavam: { fn: 'renavam', options: () => ({}) },
+  'voter-title': { fn: 'voterTitle', options: (f) => ({ uf: requireFlag(f, 'uf', 'voter-title') }) },
+  'state-registration': { fn: 'stateRegistration', options: (f, formatting) => ({ uf: toStr(f.uf), formatting }) },
+  certificate: {
+    fn: 'certificate',
+    options: (f, formatting) => ({ type: (toStr(f.type) as CertificateType | undefined) ?? 'any', formatting }),
+  },
+  'bank-account': {
+    fn: 'bankAccount',
+    options: (f) => ({ bank: (toStr(f.bank) as BankAccountBank | 'random' | undefined) ?? 'random', uf: toStr(f.uf) }),
+  },
+  'credit-card': {
+    fn: 'creditCard',
+    options: (f, formatting) => ({ flag: toStr(f.flag) as CreditCardGeneratorFlag | undefined, formatting }),
+  },
+  vehicle: { fn: 'vehicle', options: (f, formatting) => ({ brand: toStr(f.brand), uf: toStr(f.uf), formatting }) },
+  'vehicle-brand': { fn: 'vehicleBrand', options: (f) => ({ n: toNumber(f.n) }) },
+  'vehicle-plate': { fn: 'vehiclePlate', options: (f, formatting) => ({ uf: toStr(f.uf), formatting }) },
+  company: { fn: 'company', options: (f, formatting) => ({ uf: toStr(f.uf), age: toNumber(f.age), formatting }) },
+  city: { fn: 'city', options: (f) => ({ uf: toStr(f.uf) }) },
+  uf: { fn: 'uf', options: (f) => ({ n: toNumber(f.n) }) },
+};
+
+async function runGenerator(command: string, flags: Flags): Promise<unknown> {
+  const spec = GENERATOR_COMMANDS[command];
+  if (!spec) throw new Error(`Comando de geração desconhecido: "${command}". Use --help para ver a lista.`);
+
+  const options = spec.options(flags, toBool(flags.formatting, true));
+  const online = generators[spec.fn] as unknown as AnyFn;
+  const offline = (local.generators as Record<string, unknown>)[spec.fn] as AnyFn | undefined;
+
+  // vehicle-brand e uf já são locais e só existem em `generators`.
+  if (flags.offline && offline) return buildLocalResult(offline(options));
+  return online({ ...options, timeout: toNumber(flags.timeout) });
+}
+
+// Validadores que recebem só o código.
+const CODE_VALIDATORS: Record<string, keyof typeof validators> = {
+  cpf: 'cpf',
+  cnpj: 'cnpj',
+  rg: 'rg',
+  cnh: 'cnh',
+  'pis-pasep': 'pisPasep',
+  renavam: 'renavam',
+  'voter-title': 'voterTitle',
+  certificate: 'certificate',
+};
+
+// Validadores que recebem um objeto de opções.
+const OPTION_VALIDATORS: Record<string, { fn: keyof typeof validators; options: (code: string | undefined, f: Flags) => Options }> = {
+  'state-registration': {
+    fn: 'stateRegistration',
+    options: (code, f) => ({ uf: requireFlag(f, 'uf', 'validate state-registration'), code: requireCode(code, 'state-registration') }),
+  },
+  'bank-account': {
+    fn: 'bankAccount',
+    options: (_code, f) => ({
+      bank: requireFlag(f, 'bank', 'validate bank-account') as BankAccountBank,
+      agency: requireFlag(f, 'agency', 'validate bank-account'),
+      account: requireFlag(f, 'account', 'validate bank-account'),
+    }),
+  },
+  'credit-card': {
+    fn: 'creditCard',
+    options: (code, f) => ({
+      flag: requireFlag(f, 'flag', 'validate credit-card') as CreditCardValidatorFlag,
+      code: requireCode(code, 'credit-card'),
+    }),
+  },
+};
+
+function requireCode(value: string | undefined, command: string): string {
+  if (!value) throw new Error(`"validate ${command}" exige o código a validar como argumento.`);
+  return value;
+}
+
+async function runValidator(command: string, value: string | undefined, flags: Flags): Promise<unknown> {
+  const timeout = toNumber(flags.timeout);
+  const codeFn = CODE_VALIDATORS[command];
+  const optionSpec = OPTION_VALIDATORS[command];
+
+  if (codeFn) {
+    const code = requireCode(value, command);
+    if (flags.offline) return buildLocalResult((local.validators[codeFn] as (c: string) => unknown)(code));
+    return (validators[codeFn] as (c: string, o: Options) => Promise<unknown>)(code, { timeout });
+  }
+
+  if (optionSpec) {
+    const options = optionSpec.options(value, flags);
+    if (flags.offline) return buildLocalResult((local.validators[optionSpec.fn] as unknown as AnyFn)(options));
+    return (validators[optionSpec.fn] as unknown as AnyFn)({ ...options, timeout });
+  }
+
+  throw new Error(`Comando de validação desconhecido: "${command}". Use --help para ver a lista.`);
 }
 
 function printResult(result: unknown, asJson: boolean): void {
@@ -138,251 +271,32 @@ function printResult(result: unknown, asJson: boolean): void {
     console.log(JSON.stringify(result, null, 2));
     return;
   }
-  const r = result as { success: boolean; error: string | null; data: unknown };
-  if (!r.success) {
-    console.error(`Erro: ${r.error}`);
+
+  const { success, error, data } = result as { success: boolean; error: string | null; data: unknown };
+  if (!success) {
+    console.error(`Erro: ${error}`);
     process.exitCode = 1;
     return;
   }
-  console.log(JSON.stringify(r.data, null, 2));
+  console.log(JSON.stringify(data, null, 2));
 }
 
-function runOfflineGenerator(command: string, flags: ParsedArgs['flags'], formatting: boolean): unknown {
-  switch (command) {
-    case 'people':
-      return buildLocalResult(local.generators.people({
-        n: toNumber(flags.n),
-        sex: (toStr(flags.sex) as 'M' | 'F' | 'random' | undefined) ?? 'random',
-        age: toNumber(flags.age),
-        uf: toStr(flags.uf) as never,
-        formatting,
-      }));
-    case 'cpf':
-      return buildLocalResult(local.generators.cpf({ uf: toStr(flags.uf) as never, formatting }));
-    case 'cnpj':
-      return buildLocalResult(local.generators.cnpj({ formatting }));
-    case 'rg':
-      return buildLocalResult(local.generators.rg({ formatting }));
-    case 'cnh':
-      return buildLocalResult(local.generators.cnh());
-    case 'pis-pasep':
-      return buildLocalResult(local.generators.pisPasep({ formatting }));
-    case 'renavam':
-      return buildLocalResult(local.generators.renavam());
-    case 'voter-title': {
-      const uf = toStr(flags.uf);
-      if (!uf) throw new Error('voter-title exige --uf <UF>');
-      return buildLocalResult(local.generators.voterTitle({ uf: uf as never }));
-    }
-    case 'state-registration':
-      return buildLocalResult(local.generators.stateRegistration({ uf: toStr(flags.uf) as never, formatting }));
-    case 'certificate':
-      return buildLocalResult(local.generators.certificate({
-        type: (toStr(flags.type) as CertificateType | undefined) ?? 'any',
-        formatting,
-      }));
-    case 'bank-account':
-      return buildLocalResult(local.generators.bankAccount({
-        bank: (toStr(flags.bank) as BankAccountBank | 'random' | undefined) ?? 'random',
-        uf: toStr(flags.uf) as never,
-      }));
-    case 'credit-card':
-      return buildLocalResult(local.generators.creditCard({
-        flag: toStr(flags.flag) as CreditCardGeneratorFlag | undefined,
-        formatting,
-      }));
-    case 'vehicle':
-      return buildLocalResult(local.generators.vehicle({ brand: toStr(flags.brand), uf: toStr(flags.uf) as never, formatting }));
-    case 'vehicle-brand':
-      return generators.vehicleBrand({ n: toNumber(flags.n) });
-    case 'vehicle-plate':
-      return buildLocalResult(local.generators.vehiclePlate({ uf: toStr(flags.uf) as never, formatting }));
-    case 'company':
-      return buildLocalResult(local.generators.company({ uf: toStr(flags.uf) as never, age: toNumber(flags.age), formatting }));
-    case 'city':
-      return buildLocalResult(local.generators.city({ uf: toStr(flags.uf) as never }));
-    case 'uf':
-      return generators.uf({ n: toNumber(flags.n) });
-    default:
-      throw new Error(`Comando de geração desconhecido: "${command}". Use --help para ver a lista.`);
+function readVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
+    return pkg.version;
+  } catch {
+    return 'desconhecida';
   }
-}
-
-function runOfflineValidator(command: string, value: string | undefined, flags: ParsedArgs['flags']): unknown {
-  switch (command) {
-    case 'cpf':
-      return buildLocalResult(local.validators.cpf(requireValue(value, command)));
-    case 'cnpj':
-      return buildLocalResult(local.validators.cnpj(requireValue(value, command)));
-    case 'rg':
-      return buildLocalResult(local.validators.rg(requireValue(value, command)));
-    case 'cnh':
-      return buildLocalResult(local.validators.cnh(requireValue(value, command)));
-    case 'pis-pasep':
-      return buildLocalResult(local.validators.pisPasep(requireValue(value, command)));
-    case 'renavam':
-      return buildLocalResult(local.validators.renavam(requireValue(value, command)));
-    case 'voter-title':
-      return buildLocalResult(local.validators.voterTitle(requireValue(value, command)));
-    case 'certificate':
-      return buildLocalResult(local.validators.certificate(requireValue(value, command)));
-    case 'state-registration': {
-      const uf = toStr(flags.uf);
-      if (!uf) throw new Error('validate state-registration exige --uf <UF>');
-      return buildLocalResult(local.validators.stateRegistration({ uf: uf as never, code: requireValue(value, command) }));
-    }
-    case 'bank-account': {
-      const bank = toStr(flags.bank);
-      const agency = toStr(flags.agency);
-      const account = toStr(flags.account);
-      if (!bank || !agency || !account) {
-        throw new Error('validate bank-account exige --bank, --agency e --account');
-      }
-      return buildLocalResult(local.validators.bankAccount({ bank: bank as BankAccountBank, agency, account }));
-    }
-    case 'credit-card': {
-      const flag = toStr(flags.flag);
-      if (!flag) throw new Error('validate credit-card exige --flag <bandeira>');
-      return buildLocalResult(local.validators.creditCard({ flag: flag as CreditCardValidatorFlag, code: requireValue(value, command) }));
-    }
-    default:
-      throw new Error(`Comando de validação desconhecido: "${command}". Use --help para ver a lista.`);
-  }
-}
-
-async function runGenerator(command: string, flags: ParsedArgs['flags']): Promise<unknown> {
-  const timeout = toNumber(flags.timeout);
-  const formatting = toBool(flags.formatting, true);
-
-  if (flags.offline) return runOfflineGenerator(command, flags, formatting);
-
-  switch (command) {
-    case 'people':
-      return generators.people({
-        n: toNumber(flags.n),
-        sex: (toStr(flags.sex) as 'M' | 'F' | 'random' | undefined) ?? 'random',
-        age: toNumber(flags.age),
-        uf: toStr(flags.uf) as never,
-        formatting,
-        timeout,
-      });
-    case 'cpf':
-      return generators.cpf({ uf: toStr(flags.uf) as never, formatting, timeout });
-    case 'cnpj':
-      return generators.cnpj({ formatting, timeout });
-    case 'rg':
-      return generators.rg({ formatting, timeout });
-    case 'cnh':
-      return generators.cnh({ timeout });
-    case 'pis-pasep':
-      return generators.pisPasep({ formatting, timeout });
-    case 'renavam':
-      return generators.renavam({ timeout });
-    case 'voter-title': {
-      const uf = toStr(flags.uf);
-      if (!uf) throw new Error('voter-title exige --uf <UF>');
-      return generators.voterTitle({ uf: uf as never, timeout });
-    }
-    case 'state-registration':
-      return generators.stateRegistration({ uf: toStr(flags.uf) as never, formatting, timeout });
-    case 'certificate':
-      return generators.certificate({
-        type: (toStr(flags.type) as CertificateType | undefined) ?? 'any',
-        formatting,
-        timeout,
-      });
-    case 'bank-account':
-      return generators.bankAccount({
-        bank: (toStr(flags.bank) as BankAccountBank | 'random' | undefined) ?? 'random',
-        uf: toStr(flags.uf) as never,
-        timeout,
-      });
-    case 'credit-card':
-      return generators.creditCard({
-        flag: toStr(flags.flag) as CreditCardGeneratorFlag | undefined,
-        formatting,
-        timeout,
-      });
-    case 'vehicle':
-      return generators.vehicle({
-        brand: toStr(flags.brand),
-        uf: toStr(flags.uf) as never,
-        formatting,
-        timeout,
-      });
-    case 'vehicle-brand':
-      return generators.vehicleBrand({ n: toNumber(flags.n) });
-    case 'vehicle-plate':
-      return generators.vehiclePlate({ uf: toStr(flags.uf) as never, formatting, timeout });
-    case 'company':
-      return generators.company({
-        uf: toStr(flags.uf) as never,
-        age: toNumber(flags.age),
-        formatting,
-        timeout,
-      });
-    case 'city':
-      return generators.city({ uf: toStr(flags.uf) as never, timeout });
-    case 'uf':
-      return generators.uf({ n: toNumber(flags.n) });
-    default:
-      throw new Error(`Comando de geração desconhecido: "${command}". Use --help para ver a lista.`);
-  }
-}
-
-async function runValidator(command: string, value: string | undefined, flags: ParsedArgs['flags']): Promise<unknown> {
-  const timeout = toNumber(flags.timeout);
-
-  if (flags.offline) return runOfflineValidator(command, value, flags);
-
-  switch (command) {
-    case 'cpf':
-      return validators.cpf(requireValue(value, command), { timeout });
-    case 'cnpj':
-      return validators.cnpj(requireValue(value, command), { timeout });
-    case 'rg':
-      return validators.rg(requireValue(value, command), { timeout });
-    case 'cnh':
-      return validators.cnh(requireValue(value, command), { timeout });
-    case 'pis-pasep':
-      return validators.pisPasep(requireValue(value, command), { timeout });
-    case 'renavam':
-      return validators.renavam(requireValue(value, command), { timeout });
-    case 'voter-title':
-      return validators.voterTitle(requireValue(value, command), { timeout });
-    case 'certificate':
-      return validators.certificate(requireValue(value, command), { timeout });
-    case 'state-registration': {
-      const uf = toStr(flags.uf);
-      if (!uf) throw new Error('validate state-registration exige --uf <UF>');
-      return validators.stateRegistration({ uf: uf as never, code: requireValue(value, command), timeout });
-    }
-    case 'bank-account': {
-      const bank = toStr(flags.bank);
-      const agency = toStr(flags.agency);
-      const account = toStr(flags.account);
-      if (!bank || !agency || !account) {
-        throw new Error('validate bank-account exige --bank, --agency e --account');
-      }
-      return validators.bankAccount({ bank: bank as BankAccountBank, agency, account, timeout });
-    }
-    case 'credit-card': {
-      const flag = toStr(flags.flag);
-      if (!flag) throw new Error('validate credit-card exige --flag <bandeira>');
-      return validators.creditCard({ flag: flag as CreditCardValidatorFlag, code: requireValue(value, command), timeout });
-    }
-    default:
-      throw new Error(`Comando de validação desconhecido: "${command}". Use --help para ver a lista.`);
-  }
-}
-
-function requireValue(value: string | undefined, command: string): string {
-  if (!value) throw new Error(`O comando "validate ${command}" exige um valor posicional (o código a validar).`);
-  return value;
 }
 
 async function main(): Promise<void> {
   const { command, sub, positional, flags } = parseArgs(process.argv.slice(2));
+
+  if (flags.version) {
+    console.log(readVersion());
+    return;
+  }
 
   if (flags.help || !command || command === 'help') {
     process.stdout.write(HELP);
@@ -397,13 +311,11 @@ async function main(): Promise<void> {
       process.exitCode = 1;
       return;
     }
-    const result = await runValidator(sub, positional[0], flags);
-    printResult(result, asJson);
+    printResult(await runValidator(sub, positional[0], flags), asJson);
     return;
   }
 
-  const result = await runGenerator(command, flags);
-  printResult(result, asJson);
+  printResult(await runGenerator(command, flags), asJson);
 }
 
 main().catch((err) => {

@@ -1,18 +1,9 @@
-/**
- * fordev-native/local/validators
- * ---------------------------------
- * Validação inteiramente local (sem nenhuma requisição de rede).
- *
- * Para CPF, CNPJ, PIS/PASEP, RENAVAM, CNH e cartão de crédito, o dígito
- * verificador é conferido de verdade, com o mesmo algoritmo oficial usado
- * para gerar esses documentos em `local/generators.ts` — o resultado é
- * confiável mesmo sem o 4devs.
- *
- * Para RG, título de eleitor, inscrição estadual, certidão e conta
- * bancária, não existe uma regra nacional única (varia por estado/banco),
- * então a checagem local se limita ao formato — isso fica explícito no
- * campo `raw` do resultado, para não passar confiança indevida.
- */
+// Validação sem rede.
+//
+// CPF, CNPJ, PIS/PASEP, RENAVAM, CNH e cartão (Luhn) têm o dígito verificador
+// conferido de verdade. RG, título de eleitor, inscrição estadual, certidão e conta
+// bancária não têm regra única; nesses casos só se confere o formato, e o campo
+// `raw` do resultado diz isso.
 
 import { BANK_ACCOUNT_BANKS } from '../consts.js';
 import type { BankAccountValidationOptions, CreditCardValidationOptions, StateRegistrationValidationOptions, ValidationResult } from '../types.js';
@@ -27,14 +18,14 @@ import {
 function algorithmic(label: string, isValid: boolean): ValidationResult {
   return {
     isValid,
-    raw: `Validado localmente (algoritmo oficial de ${label}, sem consultar o 4devs): ${isValid ? 'válido' : 'inválido'}.`,
+    raw: `Validado localmente (algoritmo oficial de ${label}): ${isValid ? 'válido' : 'inválido'}.`,
   };
 }
 
 function formatOnly(label: string, isValid: boolean): ValidationResult {
   return {
     isValid,
-    raw: `Verificação local de formato apenas (${label}) — não confirma emissão real, o 4devs estava indisponível: ${isValid ? 'formato válido' : 'formato inválido'}.`,
+    raw: `Verificação local só de formato (${label}); não confirma que o documento existe: ${isValid ? 'formato válido' : 'formato inválido'}.`,
   };
 }
 

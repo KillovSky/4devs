@@ -1,4 +1,4 @@
-name: "🐛 Relatar um Bug"
+name: "Relatar um bug"
 description: "Encontrou um problema? Descreva-o aqui para que possamos investigar."
 labels: ["bug", "needs-triage"]
 body:
@@ -8,7 +8,7 @@ body:
         ## Antes de abrir a issue
 
         - Verifique se já existe uma issue similar em aberto.
-        - Certifique-se de estar usando a **versão mais recente** do projeto.
+        - Certifique-se de estar usando a versão mais recente do projeto.
 
   - type: checkboxes
     id: latest_version
@@ -33,9 +33,10 @@ body:
       label: "Versão do Node.js"
       description: "Execute `node -v` para verificar."
       options:
-        - "v20.x (LTS Mínimo)"
-        - "v22.x (LTS Atual)"
-        - "v23.x ou superior"
+        - "v18.x"
+        - "v20.x"
+        - "v22.x"
+        - "v24.x ou superior"
         - "Outra (informe nos detalhes adicionais)"
     validations:
       required: true
@@ -66,9 +67,10 @@ body:
       description: "Em qual parte do sistema o problema ocorre?"
       multiple: true
       options:
-        - "Código Geral"
-        - "Redes / API"
-        - "Infraestrutura Geral"
+        - "Geradores e validadores"
+        - "Rede / 4devs.com.br"
+        - "Modo local (fallback)"
+        - "CLI"
         - "Build / TypeScript"
         - "Testes"
         - "Outro"
@@ -79,7 +81,7 @@ body:
     id: description
     attributes:
       label: "Descrição do problema"
-      description: "Descreva o que está acontecendo de forma clara e objetiva."
+      description: "O que está acontecendo?"
       placeholder: "Ao fazer X, o sistema faz Y, mas o esperado era Z."
     validations:
       required: true
